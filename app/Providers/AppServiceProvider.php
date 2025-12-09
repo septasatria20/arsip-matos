@@ -11,10 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Fix: Mengatur path public ke root (public_html) agar Vite dapat menemukan manifest.json
-        $this->app->bind('path.public', function () {
-            return base_path();
-        });
+        // Fix: Gunakan instance() untuk memaksa override path public ke root project (public_html)
+        // bind() tidak bekerja karena path.public sudah di-set sebagai instance saat aplikasi booting
+        $this->app->instance('path.public', base_path());
     }
 
     /**
