@@ -39,6 +39,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 2. Confirmation Letter (Surat)
     Route::get('/confirmation-letter', [ConfirmationLetterController::class, 'index'])->name('confirmation.index');
     Route::post('/confirmation-letter', [ConfirmationLetterController::class, 'store'])->name('confirmation.store');
+    Route::patch('/confirmation-letter/{id}', [ConfirmationLetterController::class, 'update'])->name('confirmation.update');
+    Route::patch('/confirmation-letter/{id}/status', [ConfirmationLetterController::class, 'updateStatus'])->name('confirmation.status');
     Route::delete('/confirmation-letter/{id}', [ConfirmationLetterController::class, 'destroy'])->name('confirmation.destroy');
     Route::post('/confirmation-letter/generate', [ConfirmationLetterController::class, 'generate'])->name('confirmation.generate');
     Route::post('/confirmation-letter/preview', [ConfirmationLetterController::class, 'preview'])->name('confirmation.preview'); //

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
+import ConfirmDialog from '@/Components/ConfirmDialog';
+import Toast from '@/Components/Toast';
 import { 
   FileText, Calendar, Filter, Plus, Upload, 
   Trash2, Eye, Download, Save, ChevronLeft, 
-  CheckCircle, XCircle, User, Users, Printer, X, Edit
+  CheckCircle, XCircle, User, Users, Printer, X, Edit, ChevronRight
 } from 'lucide-react';
 
 export default function ConfirmationLetter({ auth, letters, filters }) {
@@ -15,9 +17,48 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
   
   const isManager = auth.user.role === 'manager' || auth.user.role === 'co_manager';
 
+  // --- CONFIRM DIALOG STATE ---
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {}
+  });
+
+  // --- TOAST NOTIFICATION STATE ---
+  const { flash = {} } = usePage().props;
+  const [toast, setToast] = useState({
+    isVisible: false,
+    message: '',
+    type: 'success'
+  });
+
+  // --- STATE PREVIEW PDF ---
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Handle flash messages
+  useEffect(() => {
+    if (flash?.message) {
+      setToast({ isVisible: true, message: flash.message, type: 'success' });
+    }
+    if (flash?.error) {
+      setToast({ isVisible: true, message: flash.error, type: 'error' });
+    }
+  }, [flash]);
+
+  // --- PAGINATION STATE ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(letters.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentLetters = letters.slice(startIndex, endIndex);
+
   // --- STATE FILTER ---
   const [filterValues, setFilterValues] = useState({
     category: filters.category || '',
+    status: filters.status || 'all',
     month: filters.month || '',
     year: filters.year || new Date().getFullYear(),
     search: filters.search || ''
@@ -26,10 +67,6 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
   const handleFilter = () => {
     router.get(route('confirmation.index'), filterValues, { preserveState: true });
   };
-
-  // --- STATE PREVIEW PDF ---
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // --- FORM ARSIP MANUAL (Create & Edit) ---
   const { 
@@ -47,6 +84,7 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
     category: '', 
     custom_category: '',
     file: null,
+    drive_link: '',
     _method: 'POST'
   });
 
@@ -74,7 +112,8 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
           category: isCustom ? 'Lainnya' : item.category,
           custom_category: isCustom ? item.category : '',
           file: null,
-          _method: 'PUT'
+          drive_link: item.drive_link || '',
+          _method: 'PATCH'
       });
       setViewMode('archive');
   };
@@ -102,21 +141,33 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
     pihak_kedua_jabatan: '',
     pihak_kedua_instansi: '',
     pihak_kedua_alamat: '',
+    tema_event: '',
+    tanggal_surat: new Date().toISOString().split('T')[0],
     event_date: new Date().toISOString().split('T')[0],
-    poin_support: [''],
+    poin_support_pihak_pertama: [''],
+    poin_support_pihak_kedua: [''],
     signatures: [
         { label: 'Pihak Pertama', nama: 'Listyo Rahayu', jabatan: 'Marcomm Manager' },
         { label: 'Pihak Kedua', nama: '', jabatan: '' }
     ]
   });
 
-  const handlePoinChange = (index, value) => {
-    const newPoin = [...genData.poin_support];
+  const handlePoinChange = (pihak, index, value) => {
+    const key = pihak === 'pertama' ? 'poin_support_pihak_pertama' : 'poin_support_pihak_kedua';
+    const newPoin = [...genData[key]];
     newPoin[index] = value;
-    setGenData('poin_support', newPoin);
+    setGenData(key, newPoin);
   };
-  const addPoin = () => setGenData('poin_support', [...genData.poin_support, '']);
-  const removePoin = (index) => setGenData('poin_support', genData.poin_support.filter((_, i) => i !== index));
+  
+  const addPoin = (pihak) => {
+    const key = pihak === 'pertama' ? 'poin_support_pihak_pertama' : 'poin_support_pihak_kedua';
+    setGenData(key, [...genData[key], '']);
+  };
+  
+  const removePoin = (pihak, index) => {
+    const key = pihak === 'pertama' ? 'poin_support_pihak_pertama' : 'poin_support_pihak_kedua';
+    setGenData(key, genData[key].filter((_, i) => i !== index));
+  };
 
   const handleSigChange = (index, field, value) => {
     const newSigs = [...genData.signatures];
@@ -145,9 +196,64 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
 
   // --- HANDLER PREVIEW PDF ---
   const handlePreview = async () => {
+    // Validasi manual sebelum kirim
+    const errors = [];
+    
+    if (!genData.pihak_kedua_nama?.trim()) errors.push('Nama Pihak Kedua');
+    if (!genData.pihak_kedua_jabatan?.trim()) errors.push('Jabatan Pihak Kedua');
+    if (!genData.pihak_kedua_instansi?.trim()) errors.push('Nama Instansi');
+    if (!genData.pihak_kedua_alamat?.trim()) errors.push('Alamat');
+    if (!genData.tema_event?.trim()) errors.push('Tema Event');
+    if (!genData.tanggal_surat) errors.push('Tanggal Pembuatan Surat');
+    if (!genData.event_date) errors.push('Tanggal Pelaksanaan Event');
+    
+    // Cek poin support pihak pertama
+    const validPoinPertama = genData.poin_support_pihak_pertama?.filter(p => p?.trim());
+    if (!validPoinPertama || validPoinPertama.length === 0) {
+        errors.push('Minimal 1 Poin Support Pihak Pertama');
+    }
+    
+    // Cek poin support pihak kedua
+    const validPoinKedua = genData.poin_support_pihak_kedua?.filter(p => p?.trim());
+    if (!validPoinKedua || validPoinKedua.length === 0) {
+        errors.push('Minimal 1 Poin Support Pihak Kedua');
+    }
+    
+    // Cek signatures
+    if (!genData.signatures || genData.signatures.length === 0) {
+        errors.push('Minimal 1 Penandatangan');
+    } else {
+        genData.signatures.forEach((sig, idx) => {
+            if (!sig.nama?.trim()) errors.push(`Nama Penandatangan ${idx + 1}`);
+            if (!sig.jabatan?.trim()) errors.push(`Jabatan Penandatangan ${idx + 1}`);
+        });
+    }
+    
+    if (errors.length > 0) {
+        setToast({
+            isVisible: true,
+            message: `Field berikut harus diisi: ${errors.join(', ')}`,
+            type: 'warning'
+        });
+        return;
+    }
+    
     setIsPreviewLoading(true);
+    
+    // Wrap semua dalam try catch untuk catch semua error
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (!csrfToken) {
+        setIsPreviewLoading(false);
+        setToast({
+            isVisible: true,
+            message: 'CSRF token tidak ditemukan. Refresh halaman dan coba lagi.',
+            type: 'error'
+        });
+        return;
+    }
+    
     try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         const response = await fetch(route('confirmation.preview'), {
             method: 'POST',
             headers: {
@@ -158,18 +264,79 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
             body: JSON.stringify(genData)
         });
 
-        if (!response.ok) throw new Error('Gagal memuat preview');
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        setPreviewUrl(url);
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = 'Gagal memuat preview';
+            
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorMessage;
+                
+                // Jika ada validation errors
+                if (errorData.errors) {
+                    const validationErrors = Object.values(errorData.errors).flat();
+                    errorMessage = validationErrors.join(', ');
+                }
+            } catch (e) {
+                // Jika bukan JSON, pakai text biasa
+                console.error('Preview error:', errorText);
+            }
+            
+            setIsPreviewLoading(false);
+            setToast({
+                isVisible: true,
+                message: errorMessage,
+                type: 'error'
+            });
+            return;
+        }
+        
+        try {
+            const blob = await response.blob();
+            
+            // Validasi blob type
+            if (!blob) {
+                throw new Error('Tidak dapat membuat blob dari response');
+            }
+            
+            if (blob.size === 0) {
+                throw new Error('PDF kosong, silakan coba lagi');
+            }
+            
+            // Check blob type
+            console.log('Blob type:', blob.type, 'Size:', blob.size);
+            
+            // Create object URL dan buka di tab baru
+            const url = window.URL.createObjectURL(blob);
+            const newWindow = window.open(url, '_blank');
+            
+            // Cleanup URL setelah window terbuka
+            if (newWindow) {
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                }, 1000);
+            }
+            
+            setIsPreviewLoading(false);
+        } catch (blobError) {
+            console.error('Blob error:', blobError);
+            setIsPreviewLoading(false);
+            setToast({
+                isVisible: true,
+                message: 'Gagal membuat preview PDF. Silakan coba lagi.',
+                type: 'error'
+            });
+        }
     } catch (error) {
-        alert('Gagal membuat preview. Pastikan data terisi lengkap.');
-    } finally {
+        console.error('Preview error:', error);
         setIsPreviewLoading(false);
+        setToast({
+            isVisible: true,
+            message: error.message || 'Gagal membuat preview. Silakan coba lagi.',
+            type: 'error'
+        });
     }
   };
-
-  const closePreview = () => setPreviewUrl(null);
 
   const submitGenerator = (e) => {
     e.preventDefault();
@@ -178,47 +345,54 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
 
   // --- GENERAL ACTIONS ---
   const updateStatus = (id, newStatus) => {
-    if(confirm(`Ubah status menjadi ${newStatus}?`)) {
-        router.patch(route('confirmation.status', id), { status: newStatus });
-    }
+    const statusText = newStatus === 'approved' ? 'Setujui' : 'Tolak';
+    const statusColor = newStatus === 'approved' ? 'success' : 'danger';
+    
+    setConfirmDialog({
+        isOpen: true,
+        title: `${statusText} Surat?`,
+        message: `Apakah Anda yakin ingin ${statusText.toLowerCase()} surat ini? Tindakan ini akan tercatat di sistem.`,
+        type: statusColor,
+        onConfirm: () => {
+            setConfirmDialog({ ...confirmDialog, isOpen: false });
+            router.patch(route('confirmation.status', id), { status: newStatus });
+        }
+    });
   };
 
   const handleDelete = (id) => {
-    if (confirm('Yakin ingin menghapus data ini?')) {
-        router.delete(route('confirmation.destroy', id));
-    }
+    setConfirmDialog({
+        isOpen: true,
+        title: 'Hapus Data?',
+        message: 'Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.',
+        type: 'danger',
+        onConfirm: () => {
+            setConfirmDialog({ ...confirmDialog, isOpen: false });
+            router.delete(route('confirmation.destroy', id));
+        }
+    });
   };
 
   return (
     <AuthenticatedLayout user={auth.user} title="Confirmation Letter">
       
-      {/* --- MODAL PREVIEW PDF --- */}
-      {previewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
-                    <h3 className="font-bold text-lg text-slate-700 flex items-center">
-                        <Eye className="mr-2 text-indigo-600" size={20}/> Preview Surat
-                    </h3>
-                    <button onClick={closePreview} className="p-2 hover:bg-slate-200 rounded-full transition">
-                        <X size={20} className="text-slate-500"/>
-                    </button>
-                </div>
-                <div className="flex-1 bg-slate-200 p-4">
-                    <iframe src={previewUrl} className="w-full h-full rounded-lg shadow-inner bg-white" title="PDF Preview"></iframe>
-                </div>
-                <div className="p-4 border-t border-slate-200 bg-white flex justify-end gap-3">
-                    <button onClick={closePreview} className="px-4 py-2 border rounded-xl text-slate-600 hover:bg-slate-50 font-medium">Tutup & Edit Lagi</button>
-                    <button 
-                        onClick={(e) => { closePreview(); document.getElementById('form-generator').requestSubmit(); }} 
-                        className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg flex items-center"
-                    >
-                        <Save size={18} className="mr-2"/> Simpan Permanen
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
+      {/* --- TOAST NOTIFICATION --- */}
+      <Toast 
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={() => setToast({ ...toast, isVisible: false })}
+      />
+
+      {/* --- CONFIRM DIALOG --- */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+      />
 
       {/* VIEW: LIST DATA */}
       {viewMode === 'list' && (
@@ -238,13 +412,13 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                 </button>
                 
                 {/* === PERBAIKAN DROPDOWN HOVER === */}
-                <div className="relative group z-20"> {/* Tambah z-20 */}
+                <div className="relative group"> {/* Hapus z-20 untuk tidak menutupi account dropdown */}
                     <button className="w-full md:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 flex items-center justify-center transition-colors">
                        <Plus size={18} className="mr-2" /> Menu Baru
                     </button>
                     
                     {/* Menggunakan padding-top (pt-2) sebagai jembatan agar kursor tidak putus */}
-                    <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block hover:block transition-all duration-200">
+                    <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block hover:block transition-all duration-200 z-10">
                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden">
                            <button onClick={() => {resetForm(); setViewMode('archive');}} className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 flex items-center transition-colors border-b border-slate-50">
                              <Upload size={16} className="mr-2" /> Upload Arsip
@@ -262,12 +436,18 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
 
           {/* FILTER SECTION */}
           {showFilter && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm grid grid-cols-1 sm:grid-cols-5 gap-4">
                 <input 
                     type="text" placeholder="Cari Event / EO..." 
                     className="border p-2 rounded-lg text-sm"
                     value={filterValues.search} onChange={e => setFilterValues({...filterValues, search: e.target.value})}
                 />
+                <select className="border p-2 rounded-lg text-sm" value={filterValues.status} onChange={e => setFilterValues({...filterValues, status: e.target.value})}>
+                    <option value="all">Semua Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
                 <select className="border p-2 rounded-lg text-sm" value={filterValues.month} onChange={e => setFilterValues({...filterValues, month: e.target.value})}>
                     <option value="">Semua Bulan</option>
                     {[...Array(12)].map((_, i) => <option key={i} value={i+1}>{new Date(0, i).toLocaleString('id', {month:'long'})}</option>)}
@@ -294,8 +474,8 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {letters.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400">Belum ada data.</td></tr>}
-                  {letters.map((item) => (
+                  {currentLetters.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400">Belum ada data.</td></tr>}
+                  {currentLetters.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4">
                         <div className="font-bold text-slate-800">{item.event_name}</div>
@@ -312,22 +492,45 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${item.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : item.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                           {item.status}
                         </span>
+                        {item.approved_at && (
+                          <div className="text-[10px] text-green-600 mt-1">
+                            ✓ {new Date(item.approved_at).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+                          </div>
+                        )}
+                        {item.rejected_at && (
+                          <div className="text-[10px] text-red-600 mt-1">
+                            ✗ {new Date(item.rejected_at).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+                          </div>
+                        )}
                       </td>
                       
                       {/* KOLOM DOKUMEN (DIPERBAIKI) */}
                       <td className="p-4">
-                        {item.file_path ? (
-                            <a 
-                                href={`/storage/${item.file_path}`} 
-                                target="_blank" 
-                                className="flex items-center text-sm text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
-                                title="Klik untuk melihat dokumen"
-                            >
-                                <FileText size={16} className="mr-1"/> Lihat Dokumen
-                            </a>
-                        ) : (
-                            <span className="text-xs text-slate-400 italic">Tidak ada file</span>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {item.file_path && (
+                              <a 
+                                  href={`/storage/${item.file_path}`} 
+                                  target="_blank" 
+                                  className="flex items-center text-sm text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                                  title="Klik untuk melihat dokumen"
+                              >
+                                  <FileText size={16} className="mr-1"/> Lihat File
+                              </a>
+                          )}
+                          {item.drive_link && (
+                              <a 
+                                  href={item.drive_link} 
+                                  target="_blank" 
+                                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                  title="Buka Google Drive"
+                              >
+                                  <FileText size={16} className="mr-1"/> Drive Link
+                              </a>
+                          )}
+                          {!item.file_path && !item.drive_link && (
+                              <span className="text-xs text-slate-400 italic">Tidak ada file</span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="p-4 text-right flex justify-end space-x-2">
@@ -345,13 +548,6 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                                 <Edit size={18} />
                             </button>
                         )}
-
-                        {/* Tombol View/Download (Mata) */}
-                        {item.file_path && (
-                             <a href={`/storage/${item.file_path}`} target="_blank" className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Buka File">
-                                <Eye size={18}/>
-                             </a>
-                        )}
                         
                         <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18}/></button>
                       </td>
@@ -360,6 +556,45 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                 </tbody>
               </table>
             </div>
+            
+            {/* PAGINATION */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="text-sm text-slate-600">
+                  Menampilkan <span className="font-bold">{startIndex + 1}</span> - <span className="font-bold">{Math.min(endIndex, letters.length)}</span> dari <span className="font-bold">{letters.length}</span> surat
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium ${currentPage === 1 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    ← Sebelumnya
+                  </button>
+                  
+                  <div className="flex gap-1">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium ${currentPage === totalPages ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    Selanjutnya →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -388,15 +623,34 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                     <div><label className="label">Nama Instansi / Perusahaan</label><input type="text" className="input-field" value={genData.pihak_kedua_instansi} onChange={e => setGenData('pihak_kedua_instansi', e.target.value)} required /></div>
                     <div><label className="label">Alamat Lengkap</label><textarea className="input-field" rows="2" value={genData.pihak_kedua_alamat} onChange={e => setGenData('pihak_kedua_alamat', e.target.value)} required /></div>
 
-                    <div>
-                        <label className="label mb-2 block">Poin-poin Support (Bentuk Kerjasama)</label>
-                        {genData.poin_support.map((poin, idx) => (
+                    <div className="grid grid-cols-2 gap-6 border-t pt-6">
+                        <div><label className="label">Tema Event</label><input type="text" className="input-field" placeholder="Contoh: Baby Fashion Competition X Matos Tema Batik Merangkak" value={genData.tema_event} onChange={e => setGenData('tema_event', e.target.value)} required /></div>
+                        <div><label className="label">Tanggal Pembuatan Surat</label><input type="date" className="input-field" value={genData.tanggal_surat} onChange={e => setGenData('tanggal_surat', e.target.value)} required /></div>
+                    </div>
+                    <div><label className="label">Tanggal Pelaksanaan Event</label><input type="date" className="input-field" value={genData.event_date} onChange={e => setGenData('event_date', e.target.value)} required /></div>
+
+                    {/* POIN SUPPORT PIHAK PERTAMA */}
+                    <div className="border-t pt-6">
+                        <label className="label mb-3 block text-indigo-600">📋 Poin Support dari Pihak Pertama</label>
+                        {genData.poin_support_pihak_pertama.map((poin, idx) => (
                             <div key={idx} className="flex gap-2 mb-2">
-                                <input type="text" className="input-field" placeholder={`Poin ${idx + 1}`} value={poin} onChange={e => handlePoinChange(idx, e.target.value)} required />
-                                <button type="button" onClick={() => removePoin(idx)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
+                                <input type="text" className="input-field" placeholder={`Poin ${idx + 1} - Apa yang akan diberikan Pihak Pertama`} value={poin} onChange={e => handlePoinChange('pertama', idx, e.target.value)} required />
+                                <button type="button" onClick={() => removePoin('pertama', idx)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
                             </div>
                         ))}
-                        <button type="button" onClick={addPoin} className="text-sm text-indigo-600 font-bold mt-2 flex items-center"><Plus size={16} className="mr-1"/> Tambah Poin</button>
+                        <button type="button" onClick={() => addPoin('pertama')} className="text-sm text-indigo-600 font-bold mt-2 flex items-center"><Plus size={16} className="mr-1"/> Tambah Poin</button>
+                    </div>
+
+                    {/* POIN SUPPORT PIHAK KEDUA */}
+                    <div className="border-t pt-6">
+                        <label className="label mb-3 block text-blue-600">📋 Poin Support dari Pihak Kedua</label>
+                        {genData.poin_support_pihak_kedua.map((poin, idx) => (
+                            <div key={idx} className="flex gap-2 mb-2">
+                                <input type="text" className="input-field" placeholder={`Poin ${idx + 1} - Apa yang akan diberikan Pihak Kedua`} value={poin} onChange={e => handlePoinChange('kedua', idx, e.target.value)} required />
+                                <button type="button" onClick={() => removePoin('kedua', idx)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
+                            </div>
+                        ))}
+                        <button type="button" onClick={() => addPoin('kedua')} className="text-sm text-blue-600 font-bold mt-2 flex items-center"><Plus size={16} className="mr-1"/> Tambah Poin</button>
                     </div>
 
                     <div className="border-t pt-6">
@@ -470,8 +724,23 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                     <input type="text" placeholder="Nama EO / Pihak Kedua" className="input-field" value={archiveData.eo_name} onChange={e => setArchiveData('eo_name', e.target.value)} required />
                     
                     <div>
-                        <label className="label">File Surat {isEditing && '(Opsional)'}</label>
-                        <input type="file" className="input-field pt-2" onChange={e => setArchiveData('file', e.target.files[0])} required={!isEditing} />
+                        <label className="label">File Surat (Opsional - Upload langsung)</label>
+                        <input type="file" className="input-field pt-2" onChange={e => setArchiveData('file', e.target.files[0])} />
+                        <p className="text-xs text-slate-500 mt-1">Upload file PDF/Word/Gambar langsung ke sistem</p>
+                    </div>
+
+                    <div className="border-t pt-4">
+                        <label className="label">Atau Link Google Drive (Opsional)</label>
+                        <input 
+                            type="url" 
+                            placeholder="https://drive.google.com/file/d/..." 
+                            className="input-field" 
+                            value={archiveData.drive_link} 
+                            onChange={e => setArchiveData('drive_link', e.target.value)} 
+                        />
+                        <p className="text-xs text-slate-500 mt-1">
+                            💡 Jika dokumen disimpan di Google Drive kantor, masukkan linknya di sini
+                        </p>
                     </div>
 
                     <button type="submit" disabled={archiveProcessing} className="bg-indigo-600 text-white w-full py-3 rounded-xl font-bold hover:bg-indigo-700 transition">

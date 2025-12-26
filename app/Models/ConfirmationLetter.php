@@ -11,7 +11,8 @@ class ConfirmationLetter extends Model
 
     protected $fillable = [
         'user_id', 'event_date', 'event_name', 'eo_name', 
-        'category', 'description', 'file_path', 'status',
+        'category', 'description', 'file_path', 'drive_link', 
+        'status', 'approved_at', 'rejected_at',
     ];
 
     public function user()
