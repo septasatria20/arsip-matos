@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar({ open, setOpen }) {
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const user = props.auth.user;
+  const isStaff = user.role === 'staff';
 
   // Helper untuk cek menu aktif (pastikan url ada)
   const isActive = (path) => url.startsWith(path);
@@ -44,12 +46,10 @@ export default function Sidebar({ open, setOpen }) {
     >
       <div className="p-6 flex items-center justify-between border-b border-slate-100 min-w-[18rem]">
         <div className="flex items-center">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center mr-3 text-white font-bold shadow-md shadow-indigo-200">
-            M
-          </div>
+          <img src="/images/logo.png" alt="Logo" className="w-10 h-auto mr-3" />
           <div>
-            <h1 className="font-bold text-slate-800 text-lg tracking-tight">MATOS</h1>
-            <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Arsip Digital</p>
+            <h1 className="font-bold text-slate-800 text-lg tracking-tight">ADMIN-SIAR</h1>
+            <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Malang Town Square</p>
           </div>
         </div>
         <button 
@@ -66,26 +66,33 @@ export default function Sidebar({ open, setOpen }) {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/dashboard" active={isActive('/dashboard')} />
           <SidebarItem icon={FileText} label="Confirmation Letter" href="/confirmation-letter" active={isActive('/confirmation-letter')} />
           <SidebarItem icon={CheckCircle} label="Laporan Event" href="/laporan-event" active={isActive('/laporan-event')} />
-          <SidebarItem icon={Box} label="Inventaris Marcom" href="/inventaris" active={isActive('/inventaris')} />
-          <SidebarItem icon={PieChart} label="Budgeting" href="/budgeting" active={isActive('/budgeting')} />
+          
+          {!isStaff && (
+            <>
+              <SidebarItem icon={Box} label="Inventaris Marcom" href="/inventaris" active={isActive('/inventaris')} />
+              <SidebarItem icon={PieChart} label="Budgeting" href="/budgeting" active={isActive('/budgeting')} />
+            </>
+          )}
         </div>
 
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-3">Admin Zone</p>
-          <SidebarItem icon={Users} label="Manajemen User" href="/users" active={isActive('/users')} badge="3 New" />
-        </div>
+        {!isStaff && (
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-3">Admin Zone</p>
+            <SidebarItem icon={Users} label="Manajemen User" href="/users" active={isActive('/users')} />
+          </div>
+        )}
       </div>
 
       <div className="p-4 border-t border-slate-100 min-w-[18rem]">
         <div className="bg-slate-50 p-3 rounded-xl flex items-center cursor-pointer hover:bg-slate-100 transition-colors">
           <img 
-            src="https://ui-avatars.com/api/?name=Admin+Matos&background=4f46e5&color=fff" 
-            alt="Admin" 
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=4f46e5&color=fff`} 
+            alt={user.name} 
             className="w-9 h-9 rounded-full mr-3"
           />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-slate-700 truncate">Admin User</p>
-            <p className="text-xs text-slate-500 truncate">Manager</p>
+            <p className="text-sm font-bold text-slate-700 truncate">{user.name}</p>
+            <p className="text-xs text-slate-500 truncate capitalize">{user.role ? user.role.replace('_', ' ') : 'Staff'}</p>
           </div>
         </div>
       </div>

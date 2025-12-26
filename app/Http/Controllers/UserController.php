@@ -40,7 +40,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', Rules\Password::defaults()],
             'role' => 'required|in:manager,co_manager,staff', // Sesuaikan role dengan kebutuhan
         ]);
 
@@ -76,7 +76,7 @@ class UserController extends Controller
         // Update password hanya jika diisi
         if ($request->filled('password')) {
             $request->validate([
-                'password' => ['confirmed', Rules\Password::defaults()],
+                'password' => [Rules\Password::defaults()],
             ]);
             $user->password = Hash::make($request->password);
         }

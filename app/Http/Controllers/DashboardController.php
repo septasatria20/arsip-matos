@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\ConfirmationLetter;
+use App\Models\EventReport;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -12,63 +15,60 @@ class DashboardController extends Controller
         $user = auth()->user();
         $role = $user->role;
         
-        // === DATA STATISTIK DUMMY ===
+        // Query Dasar
+        $lettersQuery = ConfirmationLetter::query();
+        
+        // Jika Staff, hanya tampilkan data miliknya
+        if ($role === 'staff') {
+            $lettersQuery->where('user_id', $user->id);
+        }
+
+        // === DATA STATISTIK REAL ===
         $statsData = [
-            'total_letters' => 45,
-            'pending_letters' => 8,
-            'approved_letters' => 32,
-            'rejected_letters' => 5,
+            'total_letters' => (clone $lettersQuery)->count(),
+            'pending_letters' => (clone $lettersQuery)->where('status', 'pending')->count(),
+            'approved_letters' => (clone $lettersQuery)->where('status', 'approved')->count(),
+            'rejected_letters' => (clone $lettersQuery)->where('status', 'rejected')->count(),
         ];
 
-        // === GRAFIK BULANAN DUMMY ===
-        $chartData = [
-            ['month' => 'Jan', 'letters' => 8, 'approved' => 6],
-            ['month' => 'Feb', 'letters' => 12, 'approved' => 10],
-            ['month' => 'Mar', 'letters' => 15, 'approved' => 12],
-            ['month' => 'Apr', 'letters' => 10, 'approved' => 8],
-            ['month' => 'Mei', 'letters' => 18, 'approved' => 15],
-            ['month' => 'Jun', 'letters' => 20, 'approved' => 18],
-            ['month' => 'Jul', 'letters' => 14, 'approved' => 11],
-            ['month' => 'Agu', 'letters' => 16, 'approved' => 14],
-            ['month' => 'Sep', 'letters' => 22, 'approved' => 20],
-            ['month' => 'Okt', 'letters' => 19, 'approved' => 16],
-            ['month' => 'Nov', 'letters' => 17, 'approved' => 15],
-            ['month' => 'Des', 'letters' => 25, 'approved' => 22],
-        ];
+        // === GRAFIK BULANAN REAL ===
+        // Mengambil data 12 bulan terakhir atau tahun berjalan
+        $chartDataRaw = (clone $lettersQuery)
+            ->select(
+                DB::raw('MONTH(created_at) as month'), 
+                DB::raw('COUNT(*) as letters'),
+                DB::raw('SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved')
+            )
+            ->whereYear('created_at', date('Y'))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
 
-        // === AKTIVITAS TERKINI DUMMY ===
-        $recentActivities = [
-            [
-                'title' => 'Surat Sponsorship Skin+ Approved',
-                'type' => 'Confirmation Letter',
-                'status' => 'Approved',
-                'date' => '2 jam lalu'
-            ],
-            [
-                'title' => 'Laporan Event Cosplay Run 2025',
-                'type' => 'Laporan Event',
-                'status' => 'Pending',
-                'date' => '5 jam lalu'
-            ],
-            [
-                'title' => 'Surat Kerjasama Mall Fest Rejected',
-                'type' => 'Confirmation Letter',
-                'status' => 'Rejected',
-                'date' => '1 hari lalu'
-            ],
-            [
-                'title' => 'Update Inventaris: Speaker JBL Rusak',
-                'type' => 'Inventaris',
-                'status' => 'Info',
-                'date' => '2 hari lalu'
-            ],
-            [
-                'title' => 'Budget Bulan Oktober Disetujui',
-                'type' => 'Budgeting',
-                'status' => 'Approved',
-                'date' => '3 hari lalu'
-            ],
-        ];
+        // Format data untuk chart (Pastikan 12 bulan ada meski 0)
+        $chartData = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthData = $chartDataRaw->firstWhere('month', $i);
+            $chartData[] = [
+                'month' => date("M", mktime(0, 0, 0, $i, 1)),
+                'letters' => $monthData ? $monthData->letters : 0,
+                'approved' => $monthData ? $monthData->approved : 0,
+            ];
+        }
+
+        // === AKTIVITAS TERKINI REAL ===
+        // Mengambil 5 surat terakhir
+        $recentActivities = (clone $lettersQuery)
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title' => $item->event_name ?? 'Surat Tanpa Judul',
+                    'type' => 'Confirmation Letter',
+                    'status' => ucfirst($item->status),
+                    'date' => $item->created_at->diffForHumans()
+                ];
+            });
 
         return Inertia::render('Dashboard', [
             'statsData' => $statsData,

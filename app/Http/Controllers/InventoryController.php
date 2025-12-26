@@ -63,12 +63,25 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'condition' => 'required|in:good,repair,damaged',
             'description' => 'nullable|string',
+            'image' => 'nullable|image|max:5120', // Validasi gambar
         ]);
 
-        $item->update([
+        $data = [
             'condition' => $validated['condition'],
             'description' => $validated['description'],
-        ]);
+        ];
+
+        // Handle Image Upload
+        if ($request->hasFile('image')) {
+            // Hapus gambar lama jika ada
+            if ($item->image_path) {
+                Storage::disk('public')->delete($item->image_path);
+            }
+            // Upload gambar baru
+            $data['image_path'] = $request->file('image')->store('inventories', 'public');
+        }
+
+        $item->update($data);
 
         return redirect()->back()->with('message', 'Data barang diperbarui.');
     }

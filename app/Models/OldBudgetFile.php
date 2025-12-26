@@ -5,18 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Inventory extends Model
+class OldBudgetFile extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'category',
-        'quantity',
-        'location',
-        'condition',
+        'year',
+        'file_name',
+        'file_path',
         'description',
-        'image_path',
-        'drive_link_folder',
     ];
 }

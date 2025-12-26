@@ -58,6 +58,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/budgeting', [BudgetController::class, 'index'])->name('budgeting.index');
     Route::post('/budgeting/transaction', [BudgetController::class, 'store'])->name('budgeting.store');
     Route::post('/budgeting/set-budget', [BudgetController::class, 'storeBudget'])->name('budgeting.update_budget');
+    Route::get('/budgeting/export', [BudgetController::class, 'export'])->name('budgeting.export');
+    Route::post('/budgeting/upload-old', [BudgetController::class, 'storeOldFile'])->name('budgeting.upload_old');
+    Route::delete('/budgeting/old-file/{id}', [BudgetController::class, 'destroyOldFile'])->name('budgeting.destroy_old');
 
     // Route Manajemen User
     Route::resource('users', UserController::class);

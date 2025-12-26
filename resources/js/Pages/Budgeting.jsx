@@ -12,11 +12,22 @@ const formatRupiah = (amount) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
-export default function Budgeting({ auth, monthlyOverview, incomeData, expenseData, selectedYear }) {
+// Helper format tanggal
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+};
+
+export default function Budgeting({ auth, monthlyOverview, incomeData, expenseData, selectedYear, oldBudgetFiles }) {
   const currentYear = selectedYear || new Date().getFullYear().toString();
   
   const [activeTab, setActiveTab] = useState('overview'); 
-  const [viewMode, setViewMode] = useState('list'); // list, create, set-budget
+  const [viewMode, setViewMode] = useState('list'); // list, create, set-budget, upload-old
   
   // State untuk Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +68,20 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
     budgets: []
   });
 
+  // --- FORM UPLOAD FILE LAMA ---
+  const {
+    data: oldFileData,
+    setData: setOldFileData,
+    post: postOldFile,
+    processing: oldFileProcessing,
+    errors: oldFileErrors,
+    reset: resetOldFile
+  } = useForm({
+    year: '',
+    description: '',
+    file: null
+  });
+
   // Inisialisasi data budget saat masuk mode set-budget
   useEffect(() => {
     if (viewMode === 'set-budget') {
@@ -78,6 +103,22 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
       postBudget(route('budgeting.storeBudget'), {
           onSuccess: () => setViewMode('list')
       });
+  };
+
+  const submitOldFile = (e) => {
+    e.preventDefault();
+    postOldFile(route('budgeting.upload_old'), {
+      onSuccess: () => {
+        resetOldFile();
+        setViewMode('list');
+      }
+    });
+  };
+
+  const handleDeleteOldFile = (id) => {
+    if (confirm('Yakin ingin menghapus file ini?')) {
+      router.delete(route('budgeting.destroy_old', id));
+    }
   };
 
   // --- ACTIONS TRANSAKSI ---
@@ -114,7 +155,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
       setEditId(item.id);
       setData({
           type: item.type,
-          transaction_date: item.transaction_date,
+          transaction_date: item.transaction_date.split('T')[0], // Fix format date for input
           loo_number: item.loo_number || '',
           customer_name: item.customer_name || '',
           sr_number: item.sr_number || '',
@@ -190,6 +231,13 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                  className="items-center justify-center px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm flex"
                >
                  <FileSpreadsheet size={18} className="mr-2 text-green-600" /> Excel
+               </button>
+
+               <button 
+                 onClick={() => setViewMode('upload-old')}
+                 className="items-center justify-center px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm flex"
+               >
+                 <Upload size={18} className="mr-2 text-blue-600" /> Upload Lama
                </button>
                
                {activeTab === 'overview' ? (
@@ -297,15 +345,19 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                         {incomeData.map((item, index) => (
                            <tr key={item.id} className="hover:bg-slate-50">
                               <td className="p-4 text-sm text-slate-500">{index + 1}</td>
-                              <td className="p-4 text-sm text-slate-600">{item.transaction_date}</td>
+                              <td className="p-4 text-sm text-slate-600">{formatDate(item.transaction_date)}</td>
                               <td className="p-4 text-sm font-medium text-indigo-600">{item.loo_number}</td>
                               <td className="p-4 text-sm text-slate-800">{item.customer_name}</td>
                               <td className="p-4 text-sm text-slate-600">{item.description}</td>
                               <td className="p-4 text-sm text-right font-bold text-green-600">{formatRupiah(item.nominal)}</td>
                               <td className="p-4 text-center">
-                                 <button className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center mx-auto">
-                                    <ImageIcon size={16} className="mr-1" /> Lihat
-                                 </button>
+                                 {item.proof_file_path ? (
+                                    <a href={item.proof_file_path} target="_blank" className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center mx-auto">
+                                       <ImageIcon size={16} className="mr-1" /> Lihat
+                                    </a>
+                                 ) : (
+                                    <span className="text-slate-400 text-xs">-</span>
+                                 )}
                               </td>
                               <td className="p-4 text-center flex justify-center gap-2">
                                  <button onClick={() => handleEdit(item)} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition"><Edit size={16}/></button>
@@ -333,23 +385,33 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                            <th className="p-4 text-xs font-bold text-red-800 uppercase">Vendor</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase">Deskripsi</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-right">Nominal</th>
+                           <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Bukti</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Status</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Aksi</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                         {expenseData.length === 0 && (
-                           <tr><td colSpan={9} className="p-8 text-center text-slate-400">Belum ada data pengeluaran tahun {currentYear}</td></tr>
+                           <tr><td colSpan={10} className="p-8 text-center text-slate-400">Belum ada data pengeluaran tahun {currentYear}</td></tr>
                         )}
                         {expenseData.map((item, index) => (
                            <tr key={item.id} className="hover:bg-slate-50">
                               <td className="p-4 text-sm text-slate-500">{index + 1}</td>
-                              <td className="p-4 text-sm text-slate-600">{item.transaction_date}</td>
+                              <td className="p-4 text-sm text-slate-600">{formatDate(item.transaction_date)}</td>
                               <td className="p-4 text-sm text-slate-600">{item.sr_number}</td>
                               <td className="p-4 text-sm text-slate-600">{item.po_number}</td>
                               <td className="p-4 text-sm font-medium text-slate-800">{item.vendor_name}</td>
                               <td className="p-4 text-sm text-slate-600">{item.description}</td>
                               <td className="p-4 text-sm text-right font-bold text-red-600">{formatRupiah(item.nominal)}</td>
+                              <td className="p-4 text-center">
+                                 {item.proof_file_path ? (
+                                    <a href={item.proof_file_path} target="_blank" className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center mx-auto">
+                                       <ImageIcon size={16} className="mr-1" /> Lihat
+                                    </a>
+                                 ) : (
+                                    <span className="text-slate-400 text-xs">-</span>
+                                 )}
+                              </td>
                               <td className="p-4 text-center">
                                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${item.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                     {item.status}
@@ -410,6 +472,79 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
         </div>
       )}
 
+      {/* --- UPLOAD OLD FILE MODE --- */}
+      {viewMode === 'upload-old' && (
+        <div className="max-w-3xl mx-auto animate-fade-in pb-10">
+          <button onClick={() => setViewMode('list')} className="flex items-center text-slate-500 hover:text-purple-600 mb-6 transition-colors">
+            <ChevronLeft size={20} className="mr-1" /> Kembali ke Laporan
+          </button>
+          
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-blue-600 text-white">
+              <h2 className="text-xl font-bold flex items-center"><Upload className="mr-3" size={24} /> Upload Budget Lama (Arsip)</h2>
+            </div>
+            
+            <form onSubmit={submitOldFile} className="p-6 sm:p-8 space-y-6">
+               <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Tahun Anggaran</label>
+                  <input type="number" value={oldFileData.year} onChange={e => setOldFileData('year', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" placeholder="Contoh: 2022" required />
+               </div>
+               
+               <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Deskripsi / Keterangan</label>
+                  <textarea value={oldFileData.description} onChange={e => setOldFileData('description', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" rows="3" placeholder="Contoh: Laporan Budgeting Tahun 2022 Lengkap"></textarea>
+               </div>
+
+               <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">File Arsip (PDF/Excel)</label>
+                  <input 
+                      type="file" 
+                      onChange={e => setOldFileData('file', e.target.files[0])} 
+                      className="w-full p-2 border border-slate-300 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      accept=".pdf,.xlsx,.xls,.doc,.docx"
+                      required
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Format: PDF, Excel, Word. Max: 10MB.</p>
+               </div>
+
+               <div className="flex justify-end pt-4">
+                  <button type="submit" disabled={oldFileProcessing} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center">
+                     {oldFileProcessing ? 'Mengupload...' : <><Save size={18} className="mr-2" /> Upload Arsip</>}
+                  </button>
+               </div>
+            </form>
+
+            {/* List File Lama */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50">
+                <h3 className="font-bold text-slate-700 mb-4">Arsip File Budgeting Lama</h3>
+                {oldBudgetFiles && oldBudgetFiles.length > 0 ? (
+                    <div className="space-y-3">
+                        {oldBudgetFiles.map((file) => (
+                            <div key={file.id} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg mr-4">
+                                        <FileSpreadsheet size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800">Budgeting {file.year}</h4>
+                                        <p className="text-xs text-slate-500">{file.description || 'Tidak ada deskripsi'}</p>
+                                        <a href={file.file_path} target="_blank" className="text-xs text-blue-600 hover:underline mt-1 inline-block">Download / Lihat File</a>
+                                    </div>
+                                </div>
+                                <button onClick={() => handleDeleteOldFile(file.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-slate-500 text-sm text-center py-4">Belum ada file arsip lama yang diupload.</p>
+                )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- CREATE FORM MODE --- */}
       {viewMode === 'create' && (
         <div className="max-w-3xl mx-auto animate-fade-in pb-10">
@@ -462,26 +597,26 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                            <label className="block text-sm font-bold text-slate-700 mb-2">Nama Vendor</label>
                            <input type="text" value={data.vendor_name} onChange={e => setData('vendor_name', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" />
                         </div>
-                        
-                        {/* Field Bukti Transaksi (Hanya di Expense) */}
-                        <div>
-                           <label className="block text-sm font-bold text-slate-700 mb-2">Bukti Transaksi (Gambar/PDF)</label>
-                           <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition text-center cursor-pointer relative">
-                               <input 
-                                   type="file" 
-                                   onChange={e => setData('proof_file', e.target.files[0])} 
-                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                   accept="image/*,application/pdf"
-                               />
-                               <div className="flex flex-col items-center text-slate-500">
-                                   <Upload size={24} className="mb-2 text-purple-500"/>
-                                   <span className="text-sm font-medium">{data.proof_file ? data.proof_file.name : 'Klik untuk upload bukti'}</span>
-                                   <span className="text-xs text-slate-400 mt-1">Max 2MB</span>
-                               </div>
-                           </div>
-                        </div>
                      </>
                   )}
+
+                  {/* Field Bukti Transaksi (Untuk Income & Expense) */}
+                  <div>
+                     <label className="block text-sm font-bold text-slate-700 mb-2">Bukti Transaksi (Gambar/PDF)</label>
+                     <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 hover:bg-slate-50 transition text-center cursor-pointer relative">
+                         <input 
+                             type="file" 
+                             onChange={e => setData('proof_file', e.target.files[0])} 
+                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                             accept="image/*,application/pdf"
+                         />
+                         <div className="flex flex-col items-center text-slate-500">
+                             <Upload size={24} className="mb-2 text-purple-500"/>
+                             <span className="text-sm font-medium">{data.proof_file ? data.proof_file.name : 'Klik untuk upload bukti'}</span>
+                             <span className="text-xs text-slate-400 mt-1">Max 5MB</span>
+                         </div>
+                     </div>
+                  </div>
                   
                   <div>
                      <label className="block text-sm font-bold text-slate-700 mb-2">Deskripsi</label>

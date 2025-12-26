@@ -18,11 +18,11 @@ export default function GuestLayout({ children }) {
             <div className="w-full sm:max-w-md mt-6 px-6 py-8 bg-white shadow-xl overflow-hidden sm:rounded-2xl border border-slate-100">
                 {/* Logo Header */}
                 <div className="flex flex-col items-center mb-8">
-                    <Link href="/" className="flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200 mb-4 hover:scale-105 transition-transform">
-                        <LayoutDashboard size={32} />
+                    <Link href="/" className="mb-4 hover:scale-105 transition-transform">
+                        <img src="/images/logo.png" alt="Logo SIAR" className="h-20 w-auto" />
                     </Link>
-                    <h2 className="text-2xl font-bold text-slate-800">Matos Arsip Digital</h2>
-                    <p className="text-slate-500 text-sm">Silakan masuk untuk mengakses sistem</p>
+                    <h2 className="text-2xl font-bold text-indigo-600">SIAR - MATOS</h2>
+                    <p className="text-slate-500 text-sm">Sistem Informasi Arsip Malang Town Square</p>
                 </div>
 
                 {children}

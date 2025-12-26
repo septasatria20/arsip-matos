@@ -11,8 +11,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Fix: Gunakan instance() untuk memaksa override path public ke root project (public_html)
-        // bind() tidak bekerja karena path.public sudah di-set sebagai instance saat aplikasi booting
+        // Fix: Override path public ke root project (public_html)
         $this->app->instance('path.public', base_path());
     }
 

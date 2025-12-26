@@ -16,12 +16,14 @@ export default function InventarisMarcom({ auth, items, filters }) {
   const { 
     data: editData, 
     setData: setEditData, 
-    patch: patchEdit, 
+    post: postEdit, // Ganti patch jadi post untuk support file upload (method spoofing)
     processing: editProcessing, 
     reset: resetEdit 
   } = useForm({
     condition: '',
-    description: ''
+    description: '',
+    image: null, // Tambah field image
+    _method: 'PATCH' // Method spoofing
   });
 
   // Sinkronisasi state edit saat item dipilih
@@ -29,16 +31,19 @@ export default function InventarisMarcom({ auth, items, filters }) {
     if (selectedItem) {
         setEditData({
             condition: selectedItem.condition,
-            description: selectedItem.description || ''
+            description: selectedItem.description || '',
+            image: null,
+            _method: 'PATCH'
         });
     }
   }, [selectedItem]);
 
   // Fungsi simpan perubahan dari modal
-  const handleUpdateItem = () => {
+  const handleUpdateItem = (e) => {
+      e.preventDefault(); // Prevent default form submission
       if (!selectedItem) return;
       
-      patchEdit(route('inventories.update', selectedItem.id), {
+      postEdit(route('inventories.update', selectedItem.id), {
           onSuccess: () => {
             setSelectedItem(null);
             resetEdit();
@@ -180,6 +185,16 @@ export default function InventarisMarcom({ auth, items, filters }) {
                                     onChange={(e) => setEditData('description', e.target.value)}
                                     className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none"
                                     placeholder="Update keterangan barang..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Ganti Foto Barang (Opsional)</label>
+                                <input 
+                                    type="file" 
+                                    onChange={e => setEditData('image', e.target.files[0])} 
+                                    className="w-full p-2 border border-slate-300 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+                                    accept="image/*" 
                                 />
                             </div>
 

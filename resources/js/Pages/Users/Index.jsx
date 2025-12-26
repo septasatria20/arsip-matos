@@ -3,12 +3,13 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
-  Shield, Mail, X, Save, Check 
+  Shield, Mail, X, Save, Check, Eye, EyeOff 
 } from 'lucide-react';
 
 export default function UserIndex({ auth, users, filters }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
 
   // Form State untuk Create/Edit
@@ -17,7 +18,6 @@ export default function UserIndex({ auth, users, filters }) {
     name: '',
     email: '',
     password: '',
-    password_confirmation: '',
     role: 'staff'
   });
 
@@ -44,7 +44,6 @@ export default function UserIndex({ auth, users, filters }) {
       name: user.name,
       email: user.email,
       password: '', // Kosongkan password saat edit
-      password_confirmation: '',
       role: user.role || 'staff'
     });
     clearErrors();
@@ -221,20 +220,22 @@ export default function UserIndex({ auth, users, filters }) {
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                        {isEditMode ? 'Password (Isi jika ingin mengubah)' : 'Password'}
                     </label>
-                    <input 
-                       type="password" 
-                       value={data.password}
-                       onChange={e => setData('password', e.target.value)}
-                       className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-indigo-500 mb-3"
-                       placeholder="********"
-                    />
-                    <input 
-                       type="password" 
-                       value={data.password_confirmation}
-                       onChange={e => setData('password_confirmation', e.target.value)}
-                       className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-indigo-500"
-                       placeholder="Konfirmasi Password"
-                    />
+                    <div className="relative">
+                       <input 
+                          type={showPassword ? "text" : "password"}
+                          value={data.password}
+                          onChange={e => setData('password', e.target.value)}
+                          className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-indigo-500 pr-10"
+                          placeholder="********"
+                       />
+                       <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                          onClick={() => setShowPassword(!showPassword)}
+                       >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                       </button>
+                    </div>
                     {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                  </div>
 

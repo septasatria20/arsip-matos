@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Budget;
 use App\Models\Transaction;
+use App\Models\OldBudgetFile;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\BudgetExport;
+use Illuminate\Support\Facades\Storage;
 
 class BudgetController extends Controller
 {
@@ -64,13 +68,63 @@ class BudgetController extends Controller
             ->latest()
             ->get();
 
-        // 6. Kirim semua data ke React (Inertia)
+        // 6. Ambil Data File Budget Lama
+        $oldBudgetFiles = OldBudgetFile::latest()->get();
+
+        // 7. Kirim semua data ke React (Inertia)
         return Inertia::render('Budgeting', [
             'monthlyOverview' => $monthlyOverview,
             'incomeData' => $incomeData,
             'expenseData' => $expenseData,
             'selectedYear' => $selectedYear,
+            'oldBudgetFiles' => $oldBudgetFiles,
         ]);
+    }
+
+    // Export Excel
+    public function export(Request $request)
+    {
+        $year = $request->input('year', date('Y'));
+        return Excel::download(new BudgetExport($year), 'budgeting-'.$year.'.xlsx');
+    }
+
+    // Upload File Budget Lama
+    public function storeOldFile(Request $request)
+    {
+        $request->validate([
+            'year' => 'required|string',
+            'file' => 'required|file|mimes:pdf,xlsx,xls,doc,docx|max:10240', // Max 10MB
+            'description' => 'nullable|string',
+        ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('old_budgets', $fileName, 'public');
+
+            OldBudgetFile::create([
+                'year' => $request->year,
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => '/storage/' . $filePath,
+                'description' => $request->description,
+            ]);
+        }
+
+        return redirect()->back()->with('message', 'File budget lama berhasil diupload.');
+    }
+
+    // Hapus File Budget Lama
+    public function destroyOldFile($id)
+    {
+        $file = OldBudgetFile::findOrFail($id);
+        
+        // Hapus file fisik
+        $path = str_replace('/storage/', '', $file->file_path);
+        Storage::disk('public')->delete($path);
+
+        $file->delete();
+
+        return redirect()->back()->with('message', 'File berhasil dihapus.');
     }
 
     // Simpan Data Transaksi Baru
@@ -82,11 +136,21 @@ class BudgetController extends Controller
             'transaction_date' => 'required|date',
             'nominal' => 'required|numeric',
             'description' => 'required|string',
-            // Tambahkan validasi lain sesuai kebutuhan...
+            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // Max 5MB
         ]);
 
+        $data = $request->all();
+
+        // Handle File Upload
+        if ($request->hasFile('proof_file')) {
+            $file = $request->file('proof_file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('transactions', $fileName, 'public');
+            $data['proof_file_path'] = '/storage/' . $filePath;
+        }
+
         // Simpan ke database
-        Transaction::create($request->all());
+        Transaction::create($data);
 
         // Redirect kembali agar halaman refresh otomatis
         return redirect()->back()->with('message', 'Data berhasil disimpan!');
