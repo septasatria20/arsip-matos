@@ -1,25 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   CheckCircle, Calendar, Upload, Trash2, Eye, 
   Save, ChevronLeft, Image as ImageIcon, FileText, 
   Link as LinkIcon, ExternalLink, Plus, Filter,
-  User, Check, XCircle, Search, X
+  User, Check, XCircle, Search, X, Clock
 } from 'lucide-react';
 
 export default function LaporanEvent({ auth, reports, filters }) {
   const [viewMode, setViewMode] = useState('list'); // list, create
   const [showFilter, setShowFilter] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null); // State untuk Modal Preview
+  const { flash } = usePage().props;
   
   const isManager = auth.user.role === 'manager' || auth.user.role === 'co_manager';
+
+  // Toast notification untuk flash message
+  useEffect(() => {
+    if (flash?.message) {
+      toast.success(flash.message, {
+        duration: 3000,
+        position: 'top-right',
+      });
+    }
+  }, [flash]);
 
   // --- STATE FILTER ---
   const [filterValues, setFilterValues] = useState({
     month: filters.month || '',
     year: filters.year || new Date().getFullYear(),
-    search: filters.search || ''
+    search: filters.search || '',
+    status: filters.status || ''
   });
 
   const handleFilter = () => {
@@ -48,30 +61,72 @@ export default function LaporanEvent({ auth, reports, filters }) {
 
   // --- ACTIONS ---
   const updateStatus = (id, newStatus) => {
-    if(confirm(`Ubah status laporan ini jadi ${newStatus}?`)) {
-        router.patch(route('laporan.status', id), { status: newStatus });
-    }
+    const loadingToast = toast.loading('Memproses...');
+    
+    router.patch(route('laporan.status', id), 
+      { status: newStatus }, 
+      {
+        onSuccess: () => {
+          toast.dismiss(loadingToast);
+          toast.success(newStatus === 'approved' ? 'Laporan disetujui!' : 'Laporan ditolak!');
+        },
+        onError: (errors) => {
+          toast.dismiss(loadingToast);
+          console.error('Error:', errors);
+          toast.error('Gagal memperbarui status');
+        }
+      }
+    );
   };
 
   const handleDelete = (id) => {
-    if(confirm('Hapus laporan ini?')) {
-        router.delete(route('laporan.destroy', id));
-    }
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="font-medium">Hapus laporan ini?</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+          >
+            Batal
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              router.delete(route('laporan.destroy', id), {
+                onSuccess: () => toast.success('Laporan berhasil dihapus'),
+                onError: () => toast.error('Gagal menghapus laporan')
+              });
+            }}
+            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+          >
+            Hapus
+          </button>
+        </div>
+      </div>
+    ), { duration: 5000 });
   };
 
   return (
     <AuthenticatedLayout user={auth.user} title="Laporan Event">
+      <Toaster />
       
       {/* --- MODAL PREVIEW --- */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedReport(null)}>
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedReport(null)}>
+            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-slide-up" onClick={e => e.stopPropagation()}>
                 {/* Header Image */}
-                <div className="relative h-64 bg-slate-100 flex items-center justify-center group">
+                <div className="relative max-h-[60vh] bg-slate-100 flex items-center justify-center group">
                     {selectedReport.poster_path ? (
-                        <img src={`/storage/${selectedReport.poster_path}`} className="w-full h-full object-cover" />
+                        <img 
+                          src={`/storage/${selectedReport.poster_path}`} 
+                          className="max-w-full max-h-[60vh] object-contain" 
+                          alt="Poster"
+                        />
                     ) : (
-                        <ImageIcon size={48} className="text-slate-300" />
+                        <div className="h-64 flex items-center justify-center">
+                            <ImageIcon size={48} className="text-slate-300" />
+                        </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
                     
@@ -98,11 +153,40 @@ export default function LaporanEvent({ auth, reports, filters }) {
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto bg-white">
-                    <div className="mb-8">
+                    <div className="mb-6">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Deskripsi Kegiatan</h3>
                         <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
                             {selectedReport.description || 'Tidak ada deskripsi.'}
                         </p>
+                    </div>
+
+                    {/* Timeline Info */}
+                    <div className="mb-6 p-4 bg-slate-50 rounded-xl">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Timeline</h3>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">Tanggal Event:</span>
+                                <span className="font-semibold text-slate-800">{new Date(selectedReport.event_date).toLocaleDateString('id-ID', { dateStyle: 'long' })}</span>
+                            </div>
+                            {selectedReport.approved_at && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">Disetujui:</span>
+                                    <span className="font-semibold text-green-600">{new Date(selectedReport.approved_at).toLocaleDateString('id-ID', { dateStyle: 'long' })}</span>
+                                </div>
+                            )}
+                            {selectedReport.rejected_at && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">Ditolak:</span>
+                                    <span className="font-semibold text-red-600">{new Date(selectedReport.rejected_at).toLocaleDateString('id-ID', { dateStyle: 'long' })}</span>
+                                </div>
+                            )}
+                            {selectedReport.approver && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">Oleh:</span>
+                                    <span className="font-semibold text-slate-800">{selectedReport.approver.name}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -164,7 +248,7 @@ export default function LaporanEvent({ auth, reports, filters }) {
 
           {/* Filter Bar */}
           {showFilter && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm grid grid-cols-1 sm:grid-cols-4 gap-4 animate-fade-in">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm grid grid-cols-1 sm:grid-cols-5 gap-4 animate-fade-in">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
                     <input 
@@ -180,6 +264,12 @@ export default function LaporanEvent({ auth, reports, filters }) {
                 <select className="border border-slate-300 p-2 rounded-lg text-sm outline-none" value={filterValues.year} onChange={e => setFilterValues({...filterValues, year: e.target.value})}>
                     <option value="2025">2025</option>
                     <option value="2024">2024</option>
+                </select>
+                <select className="border border-slate-300 p-2 rounded-lg text-sm outline-none" value={filterValues.status} onChange={e => setFilterValues({...filterValues, status: e.target.value})}>
+                    <option value="">Semua Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
                 </select>
                 <button onClick={handleFilter} className="bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition">Terapkan</button>
             </div>
@@ -200,19 +290,10 @@ export default function LaporanEvent({ auth, reports, filters }) {
                 onClick={() => setSelectedReport(item)} // Klik card untuk buka preview
                 className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer"
               >
-                 {/* Card Header (Poster) */}
-                 <div className="h-32 bg-slate-100 relative overflow-hidden flex items-center justify-center group">
-                    {item.poster_path ? (
-                        <img src={`/storage/${item.poster_path}`} alt="Poster" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                    ) : (
-                        <div className="flex flex-col items-center text-slate-300">
-                            <ImageIcon size={32} className="mb-1" />
-                            <span className="text-[10px]">No Poster</span>
-                        </div>
-                    )}
-                    
-                    {/* Badge Status - Sedikit diperkecil */}
-                    <div className="absolute top-2 right-2">
+                 {/* Card Body */}
+                 <div className="p-4 flex-1 flex flex-col relative">
+                    {/* Badge Status di pojok kanan atas */}
+                    <div className="absolute top-3 right-3">
                         <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm border ${
                            item.status === 'approved' ? 'bg-green-500 text-white border-green-600' : 
                            item.status === 'rejected' ? 'bg-red-500 text-white border-red-600' : 
@@ -221,19 +302,16 @@ export default function LaporanEvent({ auth, reports, filters }) {
                           {item.status}
                         </span>
                     </div>
-                 </div>
 
-                 {/* Card Body */}
-                 <div className="p-4 flex-1 flex flex-col">
-                    <div className="flex-1">
+                    <div className="flex-1 pr-20">
                         <div className="flex items-center text-[10px] text-slate-500 mb-1 font-medium uppercase tracking-wide">
                             <Calendar size={10} className="mr-1" /> {new Date(item.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
-                        {/* Judul: text-base agar tidak terlalu besar */}
-                        <h3 className="font-bold text-slate-800 text-base mb-1 line-clamp-1 leading-tight" title={item.event_name}>{item.event_name}</h3>
+                        {/* Judul */}
+                        <h3 className="font-bold text-slate-800 text-base mb-1 line-clamp-2 leading-tight" title={item.event_name}>{item.event_name}</h3>
                         
-                        {/* Deskripsi: text-xs agar muat */}
-                        <p className="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed h-8">
+                        {/* Deskripsi */}
+                        <p className="text-xs text-slate-500 line-clamp-3 mb-3 leading-relaxed">
                             {item.description || 'Tidak ada deskripsi.'}
                         </p>
                         

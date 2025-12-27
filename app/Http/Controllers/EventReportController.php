@@ -11,7 +11,7 @@ class EventReportController extends Controller
 {
     public function index(Request $request)
     {
-        $query = EventReport::with('user');
+        $query = EventReport::with(['user', 'approver']);
 
         // Logika Filter
         if ($request->filled('search')) {
@@ -22,6 +22,9 @@ class EventReportController extends Controller
         }
         if ($request->filled('year')) {
             $query->whereYear('event_date', $request->year);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
 
         // Filter Role Staff (Hanya lihat punya sendiri)
@@ -66,8 +69,37 @@ class EventReportController extends Controller
     public function updateStatus(Request $request, $id)
     {
         if (auth()->user()->role === 'staff') abort(403);
-        EventReport::where('id', $id)->update(['status' => $request->status]);
-        return redirect()->back()->with('message', 'Status diperbarui.');
+        
+        $validated = $request->validate([
+            'status' => 'required|in:approved,rejected,pending'
+        ]);
+
+        $report = EventReport::findOrFail($id);
+        
+        $updateData = [
+            'status' => $validated['status'],
+            'approved_by' => auth()->id(),
+        ];
+
+        // Set timestamp sesuai status
+        if ($validated['status'] === 'approved') {
+            $updateData['approved_at'] = now();
+            $updateData['rejected_at'] = null;
+            $message = 'Laporan berhasil disetujui!';
+        } elseif ($validated['status'] === 'rejected') {
+            $updateData['rejected_at'] = now();
+            $updateData['approved_at'] = null;
+            $message = 'Laporan ditolak.';
+        } else {
+            $updateData['approved_at'] = null;
+            $updateData['rejected_at'] = null;
+            $updateData['approved_by'] = null;
+            $message = 'Status diperbarui ke pending.';
+        }
+
+        $report->update($updateData);
+        
+        return redirect()->back()->with('message', $message);
     }
 
     public function destroy($id)

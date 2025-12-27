@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 3. Laporan Event
     Route::get('/laporan-event', [EventReportController::class, 'index'])->name('laporan.index');
     Route::post('/laporan-event', [EventReportController::class, 'store'])->name('laporan.store');
+    Route::patch('/laporan-event/{id}/status', [EventReportController::class, 'updateStatus'])->name('laporan.status');
     Route::delete('/laporan-event/{id}', [EventReportController::class, 'destroy'])->name('laporan.destroy');
 
     // 4. Inventaris Marcom
