@@ -10,4 +10,8 @@ export default defineConfig({
         }),
         react(),
     ],
+    build: {
+        outDir: 'public_html/build',
+        emptyOutDir: true,
+    },
 });
