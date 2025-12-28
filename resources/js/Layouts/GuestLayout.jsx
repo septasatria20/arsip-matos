@@ -21,7 +21,7 @@ export default function GuestLayout({ children }) {
                     <Link href="/" className="mb-4 hover:scale-105 transition-transform">
                         <img src="/images/logo.png" alt="Logo SIAR" className="h-20 w-auto" />
                     </Link>
-                    <h2 className="text-2xl font-bold text-indigo-600">SIAR - MATOS</h2>
+                    {/* <h2 className="text-2xl font-bold text-indigo-600">SIAR - MATOS</h2> */}
                     <p className="text-slate-500 text-sm">Sistem Informasi Arsip Malang Town Square</p>
                 </div>
 

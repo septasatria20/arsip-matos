@@ -6,6 +6,7 @@ use App\Http\Controllers\EventReportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\DashboardController; // Import Controller
+use App\Http\Controllers\SearchController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -36,6 +37,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(['auth', 'verified'])
         ->name('dashboard');
 
+    // 1b. Search
+    Route::get('/search', [SearchController::class, 'search'])->name('search');
+
     // 2. Confirmation Letter (Surat)
     Route::get('/confirmation-letter', [ConfirmationLetterController::class, 'index'])->name('confirmation.index');
     Route::post('/confirmation-letter', [ConfirmationLetterController::class, 'store'])->name('confirmation.store');
@@ -60,6 +64,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 5. Budgeting Marcom
     Route::get('/budgeting', [BudgetController::class, 'index'])->name('budgeting.index');
     Route::post('/budgeting/transaction', [BudgetController::class, 'store'])->name('budgeting.store');
+    Route::patch('/budgeting/transaction/{id}', [BudgetController::class, 'update'])->name('budgeting.update');
+    Route::patch('/budgeting/transaction/{id}/status', [BudgetController::class, 'updateStatus'])->name('budgeting.status');
+    Route::delete('/budgeting/transaction/{id}', [BudgetController::class, 'destroy'])->name('budgeting.destroy');
     Route::post('/budgeting/set-budget', [BudgetController::class, 'storeBudget'])->name('budgeting.update_budget');
     Route::get('/budgeting/export', [BudgetController::class, 'export'])->name('budgeting.export');
     Route::post('/budgeting/upload-old', [BudgetController::class, 'storeOldFile'])->name('budgeting.upload_old');

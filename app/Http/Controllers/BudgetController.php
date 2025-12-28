@@ -18,6 +18,8 @@ class BudgetController extends Controller
     {
         // 1. Ambil Tahun dari Filter (Default tahun ini)
         $selectedYear = $request->input('year', date('Y'));
+        $selectedMonth = $request->input('month');
+        $selectedStatus = $request->input('status');
 
         // 2. Ambil Data Budget per Bulan
         $budgets = Budget::where('year', $selectedYear)
@@ -36,7 +38,18 @@ class BudgetController extends Controller
             ->get()
             ->keyBy('month');
 
-        // 4. Susun Data untuk Tabel Overview (Gabungan Budget & Expense)
+        // 3b. Ambil Total Pemasukan per Bulan
+        $incomes = Transaction::whereYear('transaction_date', $selectedYear)
+            ->where('type', 'income')
+            ->select(
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('SUM(nominal) as total_income')
+            )
+            ->groupBy('month')
+            ->get()
+            ->keyBy('month');
+
+        // 4. Susun Data untuk Tabel Overview (Gabungan Budget, Income & Expense)
         $monthlyOverview = [];
         $months = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 
@@ -46,27 +59,41 @@ class BudgetController extends Controller
 
         foreach ($months as $num => $name) {
             $budgetAmount = $budgets[$num]->amount ?? 0;
+            $incomeAmount = $incomes[$num]->total_income ?? 0;
             $expenseAmount = $expenses[$num]->total_expense ?? 0;
             
             $monthlyOverview[] = [
                 'month_num' => $num,
                 'month' => $name,
                 'budget' => $budgetAmount,
+                'income' => $incomeAmount,
                 'expense' => $expenseAmount,
                 'diff' => $budgetAmount - $expenseAmount // Hitung selisih otomatis
             ];
         }
 
-        // 5. Ambil Data Transaksi Detail (Income & Expense)
-        $incomeData = Transaction::where('type', 'income')
-            ->whereYear('transaction_date', $selectedYear)
-            ->latest()
-            ->get();
+        // 5. Ambil Data Transaksi Detail (Income & Expense) dengan Filter
+        $incomeQuery = Transaction::where('type', 'income')
+            ->whereYear('transaction_date', $selectedYear);
+        
+        if ($selectedMonth) {
+            $incomeQuery->whereMonth('transaction_date', $selectedMonth);
+        }
+        if ($selectedStatus) {
+            $incomeQuery->where('status', $selectedStatus);
+        }
+        $incomeData = $incomeQuery->latest()->get();
 
-        $expenseData = Transaction::where('type', 'expense')
-            ->whereYear('transaction_date', $selectedYear)
-            ->latest()
-            ->get();
+        $expenseQuery = Transaction::where('type', 'expense')
+            ->whereYear('transaction_date', $selectedYear);
+        
+        if ($selectedMonth) {
+            $expenseQuery->whereMonth('transaction_date', $selectedMonth);
+        }
+        if ($selectedStatus) {
+            $expenseQuery->where('status', $selectedStatus);
+        }
+        $expenseData = $expenseQuery->latest()->get();
 
         // 6. Ambil Data File Budget Lama
         $oldBudgetFiles = OldBudgetFile::latest()->get();
@@ -85,7 +112,15 @@ class BudgetController extends Controller
     public function export(Request $request)
     {
         $year = $request->input('year', date('Y'));
-        return Excel::download(new BudgetExport($year), 'budgeting-'.$year.'.xlsx');
+        $type = $request->input('type', 'all'); // overview, income, expense, all
+        
+        $filename = 'budgeting-' . $year;
+        if ($type !== 'all') {
+            $filename .= '-' . $type;
+        }
+        $filename .= '.xlsx';
+        
+        return Excel::download(new BudgetExport($year, $type), $filename);
     }
 
     // Upload File Budget Lama
@@ -170,5 +205,72 @@ class BudgetController extends Controller
         }
 
         return redirect()->back()->with('message', 'Budget berhasil diperbarui!');
+    }
+
+    // Update Transaction
+    public function update(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        $validated = $request->validate([
+            'type' => 'required|in:income,expense',
+            'transaction_date' => 'required|date',
+            'contract_start_date' => 'nullable|date',
+            'contract_end_date' => 'nullable|date',
+            'nominal' => 'required|numeric',
+            'description' => 'required|string',
+            'drive_link' => 'nullable|url',
+            'proof_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $data = $request->except(['proof_file']);
+
+        // Handle File Upload
+        if ($request->hasFile('proof_file')) {
+            // Delete old file if exists
+            if ($transaction->proof_file_path) {
+                $oldPath = str_replace('/storage/', '', $transaction->proof_file_path);
+                Storage::disk('public')->delete($oldPath);
+            }
+            
+            $file = $request->file('proof_file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('transactions', $fileName, 'public');
+            $data['proof_file_path'] = '/storage/' . $filePath;
+        }
+
+        $transaction->update($data);
+
+        return redirect()->back()->with('message', 'Data berhasil diupdate!');
+    }
+
+    // Update Status Transaction
+    public function updateStatus(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:pending,paid,approve',
+        ]);
+
+        $transaction->update(['status' => $validated['status']]);
+
+        return redirect()->back()->with('message', 'Status berhasil diupdate!');
+    }
+
+    // Delete Transaction
+    public function destroy($id)
+    {
+        $transaction = Transaction::findOrFail($id);
+        
+        // Delete file if exists
+        if ($transaction->proof_file_path) {
+            $path = str_replace('/storage/', '', $transaction->proof_file_path);
+            Storage::disk('public')->delete($path);
+        }
+
+        $transaction->delete();
+
+        return redirect()->back()->with('message', 'Data berhasil dihapus!');
     }
 }

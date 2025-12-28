@@ -1,0 +1,103 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\ConfirmationLetter;
+use App\Models\EventReport;
+use App\Models\Inventory;
+
+class SearchController extends Controller
+{
+    public function search(Request $request)
+    {
+        $query = $request->input('q', '');
+        
+        if (strlen($query) < 2) {
+            return response()->json([
+                'letters' => [],
+                'events' => [],
+                'inventories' => []
+            ]);
+        }
+
+        $user = auth()->user();
+        $role = $user->role;
+
+        // Search Confirmation Letters
+        $lettersQuery = ConfirmationLetter::query();
+        if ($role === 'staff') {
+            $lettersQuery->where('user_id', $user->id);
+        }
+        $letters = $lettersQuery
+            ->where(function($q) use ($query) {
+                $q->where('event_name', 'like', "%{$query}%")
+                  ->orWhere('letter_number', 'like', "%{$query}%")
+                  ->orWhere('partner_name', 'like', "%{$query}%");
+            })
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'title' => $item->event_name,
+                    'subtitle' => $item->letter_number ?? 'No Surat',
+                    'status' => $item->status,
+                    'type' => 'letter',
+                    'url' => route('confirmation.index')
+                ];
+            });
+
+        // Search Event Reports
+        $eventsQuery = EventReport::query();
+        if ($role === 'staff') {
+            $eventsQuery->where('user_id', $user->id);
+        }
+        $events = $eventsQuery
+            ->where(function($q) use ($query) {
+                $q->where('event_name', 'like', "%{$query}%")
+                  ->orWhere('location', 'like', "%{$query}%");
+            })
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'title' => $item->event_name,
+                    'subtitle' => $item->location ?? 'Lokasi',
+                    'status' => $item->status,
+                    'type' => 'event',
+                    'url' => route('events.index')
+                ];
+            });
+
+        // Search Inventories (only for manager/admin)
+        $inventories = collect([]);
+        if ($role === 'manager' || $role === 'admin') {
+            $inventories = Inventory::query()
+                ->where(function($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('code', 'like', "%{$query}%")
+                      ->orWhere('category', 'like', "%{$query}%");
+                })
+                ->limit(5)
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'title' => $item->name,
+                        'subtitle' => $item->code ?? 'Kode',
+                        'status' => $item->condition,
+                        'type' => 'inventory',
+                        'url' => route('inventory.index')
+                    ];
+                });
+        }
+
+        return response()->json([
+            'letters' => $letters,
+            'events' => $events,
+            'inventories' => $inventories
+        ]);
+    }
+}

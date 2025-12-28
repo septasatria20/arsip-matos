@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   FileText, Clock, CheckCircle, AlertCircle, 
-  ArrowUpRight, Plus, FilePlus, Activity 
+  ArrowUpRight, Plus, FilePlus, Activity,
+  Calendar, Package, DollarSign, TrendingUp, TrendingDown
 } from 'lucide-react';
 
 // Import Laravel Asli (Aktifkan ini)
@@ -57,25 +58,30 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
   const chart = chartData;
   const recent = recentActivities;
 
-  // Data Kartu (Berbeda label untuk Admin vs Staff)
-  const cards = [
+  // Helper format rupiah
+  const formatRupiah = (amount) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  };
+
+  // Data Kartu untuk Staff
+  const staffCards = [
     { 
-      title: isStaff ? "Surat Saya" : "Total Surat Masuk", 
-      value: stats.total_letters, 
+      title: "Total Dokumen Saya", 
+      value: stats.total_letters + stats.total_events, 
       icon: FileText, 
       color: "bg-blue-500",
-      subtitle: isStaff ? "Total yang Anda ajukan" : "Semua surat dalam sistem"
+      subtitle: `${stats.total_letters} surat, ${stats.total_events} laporan`
     },
     { 
       title: "Menunggu Approval", 
-      value: stats.pending_letters, 
+      value: stats.pending_letters + stats.pending_events, 
       icon: Clock, 
       color: "bg-amber-500",
-      subtitle: isStaff ? "Menunggu respon Manager" : "Perlu tindakan Anda"
+      subtitle: "Menunggu respon Manager"
     },
     { 
       title: "Disetujui", 
-      value: stats.approved_letters, 
+      value: stats.approved_letters + stats.approved_events, 
       icon: CheckCircle, 
       color: "bg-green-500",
       subtitle: "Siap didownload / dicetak"
@@ -85,9 +91,43 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
       value: stats.rejected_letters, 
       icon: AlertCircle, 
       color: "bg-red-500",
-      subtitle: isStaff ? "Perlu Anda perbaiki" : "Surat yang ditolak"
+      subtitle: "Perlu Anda perbaiki"
     },
   ];
+
+  // Data Kartu untuk Manager
+  const managerCards = [
+    { 
+      title: "Total Surat Masuk", 
+      value: stats.total_letters, 
+      icon: FileText, 
+      color: "bg-blue-500",
+      subtitle: `${stats.pending_letters} menunggu approval`
+    },
+    { 
+      title: "Laporan Event", 
+      value: stats.total_events, 
+      icon: Calendar, 
+      color: "bg-purple-500",
+      subtitle: `${stats.approved_events} approved`
+    },
+    { 
+      title: "Inventaris Marcom", 
+      value: stats.total_inventory, 
+      icon: Package, 
+      color: "bg-green-500",
+      subtitle: `${stats.damaged_condition} rusak`
+    },
+    { 
+      title: "Budget Status", 
+      value: formatRupiah(stats.total_income - stats.total_expense), 
+      icon: DollarSign, 
+      color: stats.total_income >= stats.total_expense ? "bg-green-500" : "bg-red-500",
+      subtitle: `${stats.pending_transactions} pending`
+    },
+  ];
+
+  const cards = isStaff ? staffCards : managerCards;
 
   return (
     <AuthenticatedLayout user={auth.user} title="Dashboard">
@@ -116,7 +156,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
           
           {/* Kolom Kiri: Grafik & Quick Access */}
           <div className="lg:col-span-2 space-y-8">
-             {/* Grafik */}
+             {/* Grafik Surat Masuk */}
              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-bold text-slate-800 text-lg">
@@ -126,6 +166,121 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                 </div>
                 {chart && chart.length > 0 ? <SimpleBarChart data={chart} /> : <div className="h-48 flex items-center justify-center text-slate-400">Belum ada data.</div>}
              </div>
+
+             {/* Grafik Additional untuk Manager */}
+             {!isStaff && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Status Overview */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-4">Status Approval</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 rounded-full bg-amber-500 mr-3"></div>
+                          <span className="text-sm text-slate-600">Pending</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{stats.pending_letters + stats.pending_events}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 rounded-full bg-green-500 mr-3"></div>
+                          <span className="text-sm text-slate-600">Approved</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{stats.approved_letters + stats.approved_events}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 rounded-full bg-red-500 mr-3"></div>
+                          <span className="text-sm text-slate-600">Rejected</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{stats.rejected_letters}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Budget Overview */}
+                  <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-4">Budget Overview</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-600">Pemasukan</span>
+                        <div className="flex items-center text-green-600 font-bold text-sm">
+                          <TrendingUp size={16} className="mr-1" />
+                          {formatRupiah(stats.total_income)}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-600">Pengeluaran</span>
+                        <div className="flex items-center text-red-600 font-bold text-sm">
+                          <TrendingDown size={16} className="mr-1" />
+                          {formatRupiah(stats.total_expense)}
+                        </div>
+                      </div>
+                      <div className="pt-3 border-t border-slate-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-700">Selisih</span>
+                          <span className={`font-bold text-lg ${stats.total_income >= stats.total_expense ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatRupiah(stats.total_income - stats.total_expense)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inventory Status */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-4">Kondisi Inventaris</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-sm text-slate-600">Baik</span>
+                          <span className="text-sm font-bold text-slate-800">{stats.good_condition}/{stats.total_inventory}</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2">
+                          <div className="bg-green-500 h-2 rounded-full" style={{width: `${stats.total_inventory > 0 ? (stats.good_condition / stats.total_inventory * 100) : 0}%`}}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-sm text-slate-600">Rusak</span>
+                          <span className="text-sm font-bold text-slate-800">{stats.damaged_condition}/{stats.total_inventory}</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2">
+                          <div className="bg-red-500 h-2 rounded-full" style={{width: `${stats.total_inventory > 0 ? (stats.damaged_condition / stats.total_inventory * 100) : 0}%`}}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-4">Quick Stats</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <FileText size={18} className="text-blue-600 mr-3" />
+                          <span className="text-sm text-slate-600">Total Documents</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{stats.total_letters + stats.total_events}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Package size={18} className="text-green-600 mr-3" />
+                          <span className="text-sm text-slate-600">Total Items</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{stats.total_inventory}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <AlertCircle size={18} className="text-amber-600 mr-3" />
+                          <span className="text-sm text-slate-600">Needs Action</span>
+                        </div>
+                        <span className="font-bold text-amber-600">{stats.pending_letters + stats.pending_events + stats.pending_transactions}</span>
+                      </div>
+                    </div>
+                  </div>
+               </div>
+             )}
 
              {/* QUICK ACCESS (Khusus Staff) */}
              {isStaff && (

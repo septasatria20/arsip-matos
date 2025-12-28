@@ -48,7 +48,7 @@ export default function Sidebar({ open, setOpen }) {
         <div className="flex items-center">
           <img src="/images/logo.png" alt="Logo" className="w-10 h-auto mr-3" />
           <div>
-            <h1 className="font-bold text-slate-800 text-lg tracking-tight">ADMIN-SIAR</h1>
+            <h1 className="font-bold text-slate-800 text-lg tracking-tight">Dashboard Admin</h1>
             <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Malang Town Square</p>
           </div>
         </div>

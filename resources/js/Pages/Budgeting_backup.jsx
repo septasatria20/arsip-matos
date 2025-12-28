@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { useForm, router, usePage } from '@inertiajs/react';
-import toast, { Toaster } from 'react-hot-toast';
+import { useForm, router } from '@inertiajs/react';
 import { 
   PieChart, FileSpreadsheet, Plus, DollarSign, 
   TrendingUp, TrendingDown, Edit3, Save, Calculator, 
-  ChevronLeft, ChevronDown, ImageIcon, Upload, Trash2, Edit,
-  Eye, ExternalLink, Filter
+  ChevronLeft, ChevronDown, ImageIcon, Upload, Trash2, Edit
 } from 'lucide-react';
 
 // Helper format rupiah
@@ -26,30 +24,17 @@ const formatDate = (dateString) => {
 };
 
 export default function Budgeting({ auth, monthlyOverview, incomeData, expenseData, selectedYear, oldBudgetFiles }) {
-  const { flash } = usePage().props;
   const currentYear = selectedYear || new Date().getFullYear().toString();
   
   const [activeTab, setActiveTab] = useState('overview'); 
   const [viewMode, setViewMode] = useState('list'); // list, create, set-budget, upload-old
-  const [viewDetail, setViewDetail] = useState(null);
-  const [exportType, setExportType] = useState('all');
-  const [filterMonth, setFilterMonth] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   
   // State untuk Edit
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   
-  // Toast notifications
-  useEffect(() => {
-    if (flash?.message) {
-      toast.success(flash.message);
-    }
-  }, [flash]);
-  
   // Hitung Total dari Props
   const totalBudget = monthlyOverview.reduce((acc, item) => acc + Number(item.budget), 0);
-  const totalIncome = monthlyOverview.reduce((acc, item) => acc + Number(item.income), 0);
   const totalExpense = monthlyOverview.reduce((acc, item) => acc + Number(item.expense), 0);
   const totalRemaining = totalBudget - totalExpense;
 
@@ -57,8 +42,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
   const { data, setData, post, processing, errors, reset } = useForm({
     type: 'expense',
     transaction_date: new Date().toISOString().split('T')[0],
-    contract_start_date: '',
-    contract_end_date: '',
     loo_number: '',
     customer_name: '',
     sr_number: '',
@@ -70,9 +53,8 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
     description: '',
     coa_code: '',
     nominal: '',
-    drive_link: '',
-    proof_file: null,
-    _method: 'POST'
+    proof_file: null, // Field bukti
+    _method: 'POST' // Default POST
   });
 
   // --- FORM ATUR BUDGET ---
@@ -151,6 +133,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
   const submitTransaction = (e) => {
     e.preventDefault();
     if (isEditing) {
+        // Gunakan POST dengan _method: PUT untuk support file upload saat update
         post(route('budgeting.update', editId), {
             onSuccess: () => resetForm(),
         });
@@ -172,23 +155,20 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
       setEditId(item.id);
       setData({
           type: item.type,
-          transaction_date: item.transaction_date?.split('T')[0] || '',
-          contract_start_date: item.contract_start_date?.split('T')[0] || '',
-          contract_end_date: item.contract_end_date?.split('T')[0] || '',
+          transaction_date: item.transaction_date.split('T')[0], // Fix format date for input
           loo_number: item.loo_number || '',
           customer_name: item.customer_name || '',
           sr_number: item.sr_number || '',
-          sr_date: item.sr_date?.split('T')[0] || '',
+          sr_date: item.sr_date || '',
           po_number: item.po_number || '',
           invoice_number: item.invoice_number || '',
           vendor_name: item.vendor_name || '',
-          payment_date: item.payment_date?.split('T')[0] || '',
+          payment_date: item.payment_date || '',
           description: item.description || '',
           coa_code: item.coa_code || '',
           nominal: item.nominal,
-          drive_link: item.drive_link || '',
           proof_file: null,
-          _method: 'PATCH'
+          _method: 'PUT' // Spoofing method PUT
       });
       setViewMode('create');
   };
@@ -197,23 +177,8 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
     router.get(route('budgeting.index'), { year: e.target.value }, { preserveState: true });
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    router.patch(route('budgeting.status', id), { status: newStatus }, {
-      preserveScroll: true,
-      onSuccess: () => toast.success('Status berhasil diupdate!')
-    });
-  };
-
-  const handleFilterChange = () => {
-    router.get(route('budgeting.index'), { 
-      year: currentYear, 
-      month: filterMonth,
-      status: filterStatus 
-    }, { preserveState: true });
-  };
-
   const handleDownloadExcel = () => {
-    window.location.href = route('budgeting.export', { year: currentYear, type: exportType });
+    window.location.href = route('budgeting.export', { year: currentYear });
   };
 
   // Fungsi Buka Form Transaksi (Otomatis deteksi tab)
@@ -231,97 +196,10 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
       setViewMode('create');
   };
 
-  // Status Badge Component
-  const StatusBadge = ({ status }) => {
-    const colors = {
-      pending: 'bg-red-100 text-red-700 border-red-300',
-      paid: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      approve: 'bg-green-100 text-green-700 border-green-300'
-    };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${colors[status] || colors.pending}`}>
-        {status === 'approve' ? 'Approved' : status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
-  // Detail Modal Component
-  const DetailModal = ({ item, onClose }) => {
-    if (!item) return null;
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-            <h3 className="text-xl font-bold">Detail Transaksi</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-sm text-gray-600">Tipe</p><p className="font-semibold">{item.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}</p></div>
-              <div><p className="text-sm text-gray-600">Status</p><StatusBadge status={item.status} /></div>
-              <div><p className="text-sm text-gray-600">Tanggal Transaksi</p><p className="font-semibold">{formatDate(item.transaction_date)}</p></div>
-              {item.contract_start_date && (
-                <div><p className="text-sm text-gray-600">Periode Kontrak</p><p className="font-semibold">{formatDate(item.contract_start_date)} - {formatDate(item.contract_end_date)}</p></div>
-              )}
-              {item.type === 'income' && (
-                <><div><p className="text-sm text-gray-600">No. LOO</p><p className="font-semibold">{item.loo_number || '-'}</p></div>
-                <div><p className="text-sm text-gray-600">Nama Customer</p><p className="font-semibold">{item.customer_name || '-'}</p></div></>
-              )}
-              {item.type === 'expense' && (
-                <><div><p className="text-sm text-gray-600">No. SR</p><p className="font-semibold">{item.sr_number || '-'}</p></div>
-                <div><p className="text-sm text-gray-600">Tanggal SR</p><p className="font-semibold">{formatDate(item.sr_date)}</p></div>
-                <div><p className="text-sm text-gray-600">No. PO</p><p className="font-semibold">{item.po_number || '-'}</p></div>
-                <div><p className="text-sm text-gray-600">Nama Vendor</p><p className="font-semibold">{item.vendor_name || '-'}</p></div>
-                <div><p className="text-sm text-gray-600">Tanggal Bayar</p><p className="font-semibold">{formatDate(item.payment_date)}</p></div></>
-              )}
-              <div><p className="text-sm text-gray-600">Nominal</p><p className="font-semibold text-lg text-blue-600">{formatRupiah(item.nominal)}</p></div>
-            </div>
-            <div><p className="text-sm text-gray-600">Deskripsi</p><p className="mt-1 p-3 bg-gray-50 rounded">{item.description}</p></div>
-            {item.drive_link && (
-              <div><p className="text-sm text-gray-600 mb-2">Link Drive</p>
-              <a href={item.drive_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700">
-                <ExternalLink size={16} /><span>Buka Link Drive</span>
-              </a></div>
-            )}
-            {item.proof_file_path && (
-              <div><p className="text-sm text-gray-600 mb-2">Bukti Transaksi</p>
-              {item.proof_file_path.match(/\\.(jpg|jpeg|png|gif)$/i) ? (
-                <img src={item.proof_file_path} alt="Bukti" className="max-w-full h-auto rounded border" />
-              ) : (
-                <a href={item.proof_file_path} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700">
-                  <FileSpreadsheet size={16} /><span>Lihat File Bukti</span>
-                </a>
-              )}</div>
-            )}
-            <div className="flex gap-2 pt-4 border-t">
-              <button onClick={() => { onClose(); handleEdit(item); }} className="items-center justify-center px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 shadow-sm transition-colors flex">
-                <Edit size={16} className="mr-2" />Edit
-              </button>
-              <button onClick={() => { onClose(); handleDelete(item.id); }} className="items-center justify-center px-4 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm transition-colors flex">
-                <Trash2 size={16} className="mr-2" />Hapus
-              </button>
-              {item.status !== 'approve' && (
-                <button onClick={() => { handleStatusChange(item.id, 'approve'); }} className="items-center justify-center px-4 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 shadow-sm transition-colors flex ml-auto">
-                  Approve
-                </button>
-              )}
-              {item.status !== 'paid' && (
-                <button onClick={() => { handleStatusChange(item.id, 'paid'); }} className="items-center justify-center px-4 py-2.5 bg-yellow-500 text-white rounded-xl text-sm font-medium hover:bg-yellow-600 shadow-sm transition-colors flex">
-                  Mark as Paid
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // --- RENDER CONTENT ---
 
   return (
     <AuthenticatedLayout user={auth.user} title="Budgeting Marcom">
-      <Toaster position="top-right" />
       {/* --- Header Section --- */}
       {viewMode === 'list' && (
         <div className="max-w-7xl mx-auto animate-fade-in pb-10">
@@ -346,20 +224,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                    <option value="2023">Tahun 2023</option>
                  </select>
                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500 pointer-events-none" />
-               </div>
-
-               <div className="relative">
-                 <select 
-                   value={exportType}
-                   onChange={(e) => setExportType(e.target.value)}
-                   className="appearance-none bg-white border border-slate-200 text-slate-600 py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                 >
-                   <option value="all">Export Semua</option>
-                   <option value="overview">Export Overview</option>
-                   <option value="income">Export Pemasukan</option>
-                   <option value="expense">Export Pengeluaran</option>
-                 </select>
-                 <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                </div>
 
                <button 
@@ -404,14 +268,10 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
           {/* --- OVERVIEW TAB --- */}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
                     <p className="text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">Total Budget {currentYear}</p>
                     <h3 className="text-2xl font-bold text-slate-800">{formatRupiah(totalBudget)}</h3>
-                 </div>
-                 <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
-                    <p className="text-green-600 text-xs font-bold uppercase tracking-wider mb-1">Total Pemasukan</p>
-                    <h3 className="text-2xl font-bold text-slate-800">{formatRupiah(totalIncome)}</h3>
                  </div>
                  <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
                     <p className="text-red-600 text-xs font-bold uppercase tracking-wider mb-1">Total Pengeluaran</p>
@@ -432,7 +292,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                              <th className="p-4 text-xs font-bold text-slate-500 uppercase text-center w-16">No</th>
                              <th className="p-4 text-xs font-bold text-slate-500 uppercase">Bulan</th>
                              <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Budget</th>
-                             <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Pemasukan</th>
                              <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Pengeluaran</th>
                              <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Selisih</th>
                           </tr>
@@ -443,7 +302,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                                 <td className="p-4 text-center text-sm text-slate-500">{index + 1}</td>
                                 <td className="p-4 text-sm font-medium text-slate-800">{item.month}</td>
                                 <td className="p-4 text-sm text-right text-slate-600">{formatRupiah(item.budget)}</td>
-                                <td className="p-4 text-sm text-right text-green-600">{formatRupiah(item.income)}</td>
                                 <td className="p-4 text-sm text-right text-red-600">{formatRupiah(item.expense)}</td>
                                 <td className={`p-4 text-sm text-right font-bold ${item.diff < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                    {formatRupiah(item.diff)}
@@ -453,7 +311,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                           <tr className="bg-yellow-100 font-bold border-t-2 border-slate-300">
                              <td colSpan={2} className="p-4 text-center text-slate-800">TOTAL</td>
                              <td className="p-4 text-right text-slate-800">{formatRupiah(totalBudget)}</td>
-                             <td className="p-4 text-right text-green-700">{formatRupiah(totalIncome)}</td>
                              <td className="p-4 text-right text-red-700">{formatRupiah(totalExpense)}</td>
                              <td className={`p-4 text-right ${totalRemaining < 0 ? 'text-red-700' : 'text-green-700'}`}>{formatRupiah(totalRemaining)}</td>
                           </tr>
@@ -466,49 +323,18 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
 
           {/* --- INCOME TAB --- */}
           {activeTab === 'income' && (
-            <>
-              {/* Filter Bar */}
-              <div className="mb-4 flex gap-3 items-center">
-                <div className="relative">
-                  <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="appearance-none bg-white border border-slate-200 text-slate-600 py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                    <option value="">Semua Bulan</option>
-                    {monthlyOverview.map((m) => (
-                      <option key={m.month_num} value={m.month_num}>{m.month}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="appearance-none bg-white border border-slate-200 text-slate-600 py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                    <option value="">Semua Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
-                    <option value="approve">Approved</option>
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                </div>
-                <button onClick={handleFilterChange} className="px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">
-                  Terapkan Filter
-                </button>
-                {(filterMonth || filterStatus) && (
-                  <button onClick={() => { setFilterMonth(''); setFilterStatus(''); handleFilterChange(); }} className="px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-300 transition-colors">
-                    Reset
-                  </button>
-                )}
-              </div>
-              
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
                <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                      <thead>
                         <tr className="bg-green-50 border-b border-green-100">
                            <th className="p-4 text-xs font-bold text-green-800 uppercase">No</th>
                            <th className="p-4 text-xs font-bold text-green-800 uppercase">Tanggal</th>
-                           <th className="p-4 text-xs font-bold text-green-800 uppercase">Periode Kontrak</th>
                            <th className="p-4 text-xs font-bold text-green-800 uppercase">LOO No.</th>
                            <th className="p-4 text-xs font-bold text-green-800 uppercase">Customer</th>
+                           <th className="p-4 text-xs font-bold text-green-800 uppercase">Deskripsi</th>
                            <th className="p-4 text-xs font-bold text-green-800 uppercase text-right">Nominal</th>
-                           <th className="p-4 text-xs font-bold text-green-800 uppercase text-center">Status</th>
+                           <th className="p-4 text-xs font-bold text-green-800 uppercase text-center">Bukti</th>
                            <th className="p-4 text-xs font-bold text-green-800 uppercase text-center">Aksi</th>
                         </tr>
                      </thead>
@@ -520,23 +346,20 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                            <tr key={item.id} className="hover:bg-slate-50">
                               <td className="p-4 text-sm text-slate-500">{index + 1}</td>
                               <td className="p-4 text-sm text-slate-600">{formatDate(item.transaction_date)}</td>
-                              <td className="p-4 text-sm text-slate-600">
-                                {item.contract_start_date ? `${formatDate(item.contract_start_date)} - ${formatDate(item.contract_end_date)}` : '-'}
-                              </td>
-                              <td className="p-4 text-sm font-medium text-indigo-600">{item.loo_number || '-'}</td>
-                              <td className="p-4 text-sm text-slate-800">{item.customer_name || '-'}</td>
+                              <td className="p-4 text-sm font-medium text-indigo-600">{item.loo_number}</td>
+                              <td className="p-4 text-sm text-slate-800">{item.customer_name}</td>
+                              <td className="p-4 text-sm text-slate-600">{item.description}</td>
                               <td className="p-4 text-sm text-right font-bold text-green-600">{formatRupiah(item.nominal)}</td>
                               <td className="p-4 text-center">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                  item.status === 'pending' ? 'bg-red-100 text-red-700' :
-                                  item.status === 'paid' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-green-100 text-green-700'
-                                }`}>
-                                  {item.status === 'approve' ? 'Approved' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                                </span>
+                                 {item.proof_file_path ? (
+                                    <a href={item.proof_file_path} target="_blank" className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center mx-auto">
+                                       <ImageIcon size={16} className="mr-1" /> Lihat
+                                    </a>
+                                 ) : (
+                                    <span className="text-slate-400 text-xs">-</span>
+                                 )}
                               </td>
                               <td className="p-4 text-center flex justify-center gap-2">
-                                 <button onClick={() => setViewDetail(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition"><Eye size={16}/></button>
                                  <button onClick={() => handleEdit(item)} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition"><Edit size={16}/></button>
                                  <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
                               </td>
@@ -545,44 +368,12 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                      </tbody>
                   </table>
                </div>
-              </div>
-            </>
+            </div>
           )}
 
           {/* --- EXPENSE TAB --- */}
           {activeTab === 'expense' && (
-            <>
-              {/* Filter Bar */}
-              <div className="mb-4 flex gap-3 items-center">
-                <div className="relative">
-                  <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="appearance-none bg-white border border-slate-200 text-slate-600 py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                    <option value="">Semua Bulan</option>
-                    {monthlyOverview.map((m) => (
-                      <option key={m.month_num} value={m.month_num}>{m.month}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="appearance-none bg-white border border-slate-200 text-slate-600 py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                    <option value="">Semua Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
-                    <option value="approve">Approved</option>
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                </div>
-                <button onClick={handleFilterChange} className="px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">
-                  Terapkan Filter
-                </button>
-                {(filterMonth || filterStatus) && (
-                  <button onClick={() => { setFilterMonth(''); setFilterStatus(''); handleFilterChange(); }} className="px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-300 transition-colors">
-                    Reset
-                  </button>
-                )}
-              </div>
-              
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
                <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                      <thead>
@@ -592,34 +383,41 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                            <th className="p-4 text-xs font-bold text-red-800 uppercase">No. SR</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase">No. PO</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase">Vendor</th>
+                           <th className="p-4 text-xs font-bold text-red-800 uppercase">Deskripsi</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-right">Nominal</th>
+                           <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Bukti</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Status</th>
                            <th className="p-4 text-xs font-bold text-red-800 uppercase text-center">Aksi</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                         {expenseData.length === 0 && (
-                           <tr><td colSpan={8} className="p-8 text-center text-slate-400">Belum ada data pengeluaran tahun {currentYear}</td></tr>
+                           <tr><td colSpan={10} className="p-8 text-center text-slate-400">Belum ada data pengeluaran tahun {currentYear}</td></tr>
                         )}
                         {expenseData.map((item, index) => (
                            <tr key={item.id} className="hover:bg-slate-50">
                               <td className="p-4 text-sm text-slate-500">{index + 1}</td>
                               <td className="p-4 text-sm text-slate-600">{formatDate(item.transaction_date)}</td>
-                              <td className="p-4 text-sm text-slate-600">{item.sr_number || '-'}</td>
-                              <td className="p-4 text-sm text-slate-600">{item.po_number || '-'}</td>
-                              <td className="p-4 text-sm font-medium text-slate-800">{item.vendor_name || '-'}</td>
+                              <td className="p-4 text-sm text-slate-600">{item.sr_number}</td>
+                              <td className="p-4 text-sm text-slate-600">{item.po_number}</td>
+                              <td className="p-4 text-sm font-medium text-slate-800">{item.vendor_name}</td>
+                              <td className="p-4 text-sm text-slate-600">{item.description}</td>
                               <td className="p-4 text-sm text-right font-bold text-red-600">{formatRupiah(item.nominal)}</td>
                               <td className="p-4 text-center">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                  item.status === 'pending' ? 'bg-red-100 text-red-700' :
-                                  item.status === 'paid' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-green-100 text-green-700'
-                                }`}>
-                                  {item.status === 'approve' ? 'Approved' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                                </span>
+                                 {item.proof_file_path ? (
+                                    <a href={item.proof_file_path} target="_blank" className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center mx-auto">
+                                       <ImageIcon size={16} className="mr-1" /> Lihat
+                                    </a>
+                                 ) : (
+                                    <span className="text-slate-400 text-xs">-</span>
+                                 )}
+                              </td>
+                              <td className="p-4 text-center">
+                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${item.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {item.status}
+                                 </span>
                               </td>
                               <td className="p-4 text-center flex justify-center gap-2">
-                                 <button onClick={() => setViewDetail(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition"><Eye size={16}/></button>
                                  <button onClick={() => handleEdit(item)} className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition"><Edit size={16}/></button>
                                  <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
                               </td>
@@ -628,8 +426,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                      </tbody>
                   </table>
                </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
       )}
@@ -779,16 +576,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                               <input type="text" value={data.loo_number} onChange={e => setData('loo_number', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" />
                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Tanggal Kontrak Mulai</label>
-                              <input type="date" value={data.contract_start_date} onChange={e => setData('contract_start_date', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" />
-                           </div>
-                           <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Tanggal Kontrak Selesai</label>
-                              <input type="date" value={data.contract_end_date} onChange={e => setData('contract_end_date', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" />
-                           </div>
-                        </div>
                         <div>
                            <label className="block text-sm font-bold text-slate-700 mb-2">Customer Name</label>
                            <input type="text" value={data.customer_name} onChange={e => setData('customer_name', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" />
@@ -812,12 +599,6 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                         </div>
                      </>
                   )}
-
-                  {/* Link Drive Opsional */}
-                  <div>
-                     <label className="block text-sm font-bold text-slate-700 mb-2">Link Drive (Opsional)</label>
-                     <input type="url" value={data.drive_link} onChange={e => setData('drive_link', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm" placeholder="https://drive.google.com/..." />
-                  </div>
 
                   {/* Field Bukti Transaksi (Untuk Income & Expense) */}
                   <div>
@@ -856,8 +637,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
             </form>
           </div>
         </div>
-      )}      
-      {/* Detail Modal */}
-      {viewDetail && <DetailModal item={viewDetail} onClose={() => setViewDetail(null)} />}    </AuthenticatedLayout>
+      )}
+    </AuthenticatedLayout>
   );
 }
