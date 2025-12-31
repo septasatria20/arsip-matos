@@ -11,24 +11,43 @@ import { Head, Link } from '@inertiajs/react';
 
 // Grafik Sederhana (Reused)
 const SimpleBarChart = ({ data }) => {
-  const maxVal = data && data.length > 0 ? Math.max(...data.map(d => d.letters), 5) : 10;
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-56 flex items-center justify-center text-slate-400">
+        Belum ada data surat masuk tahun ini.
+      </div>
+    );
+  }
+
+  const maxVal = Math.max(...data.map(d => d.letters || 0), 5);
   
   return (
     <div className="overflow-x-auto pb-2">
       <div className="flex items-end justify-between h-56 w-full gap-2 pt-6 min-w-[300px]">
-        {data.map((item, idx) => (
-          <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer">
-            <div className="relative w-full flex justify-center items-end h-full px-1">
-              <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded mb-2 z-10 whitespace-nowrap pointer-events-none">
-                {item.letters} Item
+        {data.map((item, idx) => {
+          const barHeight = maxVal > 0 ? (item.letters / maxVal) * 100 : 0;
+          const approvedHeight = item.letters > 0 ? (item.approved / item.letters) * 100 : 0;
+          
+          return (
+            <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer">
+              <div className="relative w-full flex justify-center items-end h-full px-1">
+                <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded mb-2 z-10 whitespace-nowrap pointer-events-none">
+                  {item.letters} Surat ({item.approved} Approved)
+                </div>
+                <div 
+                  style={{ height: `${barHeight}%` }} 
+                  className="w-full bg-indigo-100 rounded-t-sm relative transition-all duration-500"
+                >
+                  <div 
+                    style={{ height: `${approvedHeight}%` }} 
+                    className="w-full absolute bottom-0 bg-indigo-500 rounded-t-sm hover:bg-indigo-600 transition-all duration-500"
+                  ></div>
+                </div>
               </div>
-              <div style={{ height: `${(item.letters / maxVal) * 100}%` }} className="w-full bg-indigo-100 rounded-t-sm relative transition-all duration-500">
-                <div style={{ height: `${item.letters > 0 ? (item.approved / item.letters) * 100 : 0}%` }} className="w-full absolute bottom-0 bg-indigo-500 rounded-t-sm hover:bg-indigo-600 transition-all duration-500"></div>
-              </div>
+              <span className="text-[10px] text-slate-400 mt-2 font-medium">{item.month}</span>
             </div>
-            <span className="text-[10px] text-slate-400 mt-2 font-medium">{item.month}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -54,9 +73,12 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
   const isStaff = role === 'staff';
   
   // Data sudah dikirim dari Controller, tidak perlu fallback dummy lagi
-  const stats = statsData;
-  const chart = chartData;
-  const recent = recentActivities;
+  const stats = statsData || {};
+  const chart = chartData || [];
+  const recent = recentActivities || [];
+
+  // Debug: Log data untuk melihat apa yang diterima
+  console.log('Dashboard Data:', { stats, chart, recent, role });
 
   // Helper format rupiah
   const formatRupiah = (amount) => {
@@ -164,7 +186,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                   </h3>
                   <span className="text-xs text-slate-400 font-medium">Tahun Ini</span>
                 </div>
-                {chart && chart.length > 0 ? <SimpleBarChart data={chart} /> : <div className="h-48 flex items-center justify-center text-slate-400">Belum ada data.</div>}
+                <SimpleBarChart data={chart} />
              </div>
 
              {/* Grafik Additional untuk Manager */}
