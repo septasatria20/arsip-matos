@@ -12,10 +12,13 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
         $role = $user->role;
+        
+        // Ambil tahun dari request atau default tahun ini
+        $selectedYear = $request->input('year', date('Y'));
         
         // Query Dasar
         $lettersQuery = ConfirmationLetter::query();
@@ -52,14 +55,14 @@ class DashboardController extends Controller
         ];
 
         // === GRAFIK BULANAN REAL ===
-        // Mengambil data 12 bulan terakhir atau tahun berjalan
+        // Mengambil data berdasarkan tahun yang dipilih
         $chartDataRaw = (clone $lettersQuery)
             ->select(
                 DB::raw('MONTH(created_at) as month'), 
                 DB::raw('COUNT(*) as letters'),
                 DB::raw('SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved')
             )
-            ->whereYear('created_at', date('Y'))
+            ->whereYear('created_at', $selectedYear)
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -73,6 +76,21 @@ class DashboardController extends Controller
                 'letters' => $monthData ? (int)$monthData->letters : 0,
                 'approved' => $monthData ? (int)$monthData->approved : 0,
             ];
+        }
+        
+        // Daftar tahun yang tersedia (dari data terakhir)
+        $availableYears = ConfirmationLetter::selectRaw('DISTINCT YEAR(created_at) as year')
+            ->when($role === 'staff', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->orderBy('year', 'desc')
+            ->pluck('year')
+            ->toArray();
+        
+        // Pastikan tahun ini ada di list
+        if (!in_array(date('Y'), $availableYears)) {
+            $availableYears[] = (int)date('Y');
+            rsort($availableYears);
         }
 
         // === AKTIVITAS TERKINI REAL ===
@@ -118,7 +136,9 @@ class DashboardController extends Controller
             'statsData' => $statsData,
             'chartData' => $chartData,
             'recentActivities' => $recentActivities,
-            'userRole' => $role
+            'userRole' => $role,
+            'availableYears' => $availableYears,
+            'selectedYear' => (int)$selectedYear
         ]);
     }
 }

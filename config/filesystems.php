@@ -38,7 +38,7 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => public_path('storage'), // Langsung ke public/storage untuk shared hosting
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
             'throw' => false,

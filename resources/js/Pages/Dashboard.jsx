@@ -9,46 +9,83 @@ import {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 
-// Grafik Sederhana (Reused)
+// Grafik Bar Chart Sederhana (lebih kontras dan selalu terlihat)
 const SimpleBarChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="h-56 flex items-center justify-center text-slate-400">
+      <div className="h-64 flex items-center justify-center text-slate-400">
         Belum ada data surat masuk tahun ini.
       </div>
     );
   }
 
-  const maxVal = Math.max(...data.map(d => d.letters || 0), 5);
-  
+  const maxVal = Math.max(...data.map(d => d.letters || 0), 1);
+  const scale = 180 / maxVal; // tinggi maksimum 180px
+  const hasData = data.some(d => d.letters > 0);
+
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex items-end justify-between h-56 w-full gap-2 pt-6 min-w-[300px]">
+    <div className="w-full">
+      <div className="flex items-end justify-between h-64 w-full gap-2 px-2">
         {data.map((item, idx) => {
-          const barHeight = maxVal > 0 ? (item.letters / maxVal) * 100 : 0;
-          const approvedHeight = item.letters > 0 ? (item.approved / item.letters) * 100 : 0;
-          
+          const letters = item.letters || 0;
+          const approved = item.approved || 0;
+
+          // Pakai skala pixel agar selalu terlihat
+          const totalHeightPx = letters > 0 ? Math.max(letters * scale, 16) : 6;
+          const approvedHeightPx = letters > 0 ? Math.max((approved / letters) * totalHeightPx, approved > 0 ? 8 : 0) : 0;
+
           return (
-            <div key={idx} className="flex flex-col items-center flex-1 group cursor-pointer">
-              <div className="relative w-full flex justify-center items-end h-full px-1">
-                <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded mb-2 z-10 whitespace-nowrap pointer-events-none">
-                  {item.letters} Surat ({item.approved} Approved)
-                </div>
-                <div 
-                  style={{ height: `${barHeight}%` }} 
-                  className="w-full bg-indigo-100 rounded-t-sm relative transition-all duration-500"
-                >
-                  <div 
-                    style={{ height: `${approvedHeight}%` }} 
-                    className="w-full absolute bottom-0 bg-indigo-500 rounded-t-sm hover:bg-indigo-600 transition-all duration-500"
-                  ></div>
+            <div key={idx} className="flex flex-col items-center flex-1 min-w-0">
+              <div className="relative w-full h-56 flex items-end justify-center group">
+                {/* Tooltip */}
+                {letters > 0 && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-3 rounded-lg whitespace-nowrap pointer-events-none shadow-lg z-10">
+                    {item.month}: {letters} Surat ({approved} Approved)
+                  </div>
+                )}
+
+                {/* Track bar */}
+                <div className="w-5 sm:w-6 bg-slate-100 rounded-lg overflow-hidden relative flex items-end">
+                  {/* Total bar */}
+                  <div
+                    style={{ height: `${totalHeightPx}px` }}
+                    className="w-full bg-indigo-200/80 rounded-t-lg relative transition-all duration-200"
+                  >
+                    {/* Approved portion */}
+                    {approvedHeightPx > 0 && (
+                      <div
+                        style={{ height: `${approvedHeightPx}px` }}
+                        className="w-full absolute bottom-0 left-0 bg-indigo-600 rounded-t-lg"
+                      ></div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <span className="text-[10px] text-slate-400 mt-2 font-medium">{item.month}</span>
+
+              {/* Month label */}
+              <span className="text-xs text-slate-600 font-medium mt-3">{item.month}</span>
             </div>
           );
         })}
       </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-indigo-200 rounded border border-indigo-300"></div>
+          <span className="text-sm text-slate-600">Total Surat</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-indigo-600 rounded"></div>
+          <span className="text-sm text-slate-600">Approved</span>
+        </div>
+      </div>
+
+      {!hasData && (
+        <div className="text-center mt-4 text-sm text-slate-400 bg-slate-50 py-3 rounded-lg">
+          Belum ada data surat untuk tahun ini. Mulai buat surat untuk melihat statistik.
+        </div>
+      )}
     </div>
   );
 };
@@ -68,7 +105,7 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
   </div>
 );
 
-export default function Dashboard({ auth, statsData, chartData, recentActivities, userRole }) {
+export default function Dashboard({ auth, statsData, chartData, recentActivities, userRole, availableYears, selectedYear }) {
   const role = userRole || auth?.user?.role || 'manager';
   const isStaff = role === 'staff';
   
@@ -76,9 +113,16 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
   const stats = statsData || {};
   const chart = chartData || [];
   const recent = recentActivities || [];
+  const years = availableYears || [new Date().getFullYear()];
+  const currentYear = selectedYear || new Date().getFullYear();
 
   // Debug: Log data untuk melihat apa yang diterima
-  console.log('Dashboard Data:', { stats, chart, recent, role });
+  console.log('Dashboard Data:', { stats, chart, recent, role, years, currentYear });
+  
+  // Handle year change
+  const handleYearChange = (year) => {
+    window.location.href = `?year=${year}`;
+  };
 
   // Helper format rupiah
   const formatRupiah = (amount) => {
@@ -180,11 +224,24 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
           <div className="lg:col-span-2 space-y-8">
              {/* Grafik Surat Masuk */}
              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <h3 className="font-bold text-slate-800 text-lg">
                     {isStaff ? 'Aktivitas Upload Saya' : 'Statistik Surat Masuk'}
                   </h3>
-                  <span className="text-xs text-slate-400 font-medium">Tahun Ini</span>
+                  
+                  {/* Year Filter Dropdown - Fixed width to prevent overlap */}
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-slate-400 flex-shrink-0" />
+                    <select 
+                      value={currentYear}
+                      onChange={(e) => handleYearChange(e.target.value)}
+                      className="text-sm border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors min-w-[100px] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat"
+                    >
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <SimpleBarChart data={chart} />
              </div>
