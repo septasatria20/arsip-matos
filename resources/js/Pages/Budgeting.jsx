@@ -341,9 +341,10 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                    onChange={handleYearChange}
                    className="appearance-none bg-white border border-purple-200 text-purple-700 font-bold py-2.5 pl-4 pr-10 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
                  >
-                   <option value="2025">Tahun 2025</option>
-                   <option value="2024">Tahun 2024</option>
-                   <option value="2023">Tahun 2023</option>
+                   {Array.from({ length: 5 }, (_, i) => {
+                     const year = new Date().getFullYear() - i;
+                     return <option key={year} value={year}>Tahun {year}</option>;
+                   })}
                  </select>
                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500 pointer-events-none" />
                </div>
