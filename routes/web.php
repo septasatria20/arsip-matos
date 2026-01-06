@@ -72,8 +72,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/budgeting/upload-old', [BudgetController::class, 'storeOldFile'])->name('budgeting.upload_old');
     Route::delete('/budgeting/old-file/{id}', [BudgetController::class, 'destroyOldFile'])->name('budgeting.destroy_old');
 
-    // Route Manajemen User
-    Route::resource('users', UserController::class);
+    // Route Manajemen User (Hanya untuk Manager dan Co-Manager)
+    Route::middleware(['role:manager,co_manager'])->group(function () {
+        Route::resource('users', UserController::class);
+    });
 
 });
 

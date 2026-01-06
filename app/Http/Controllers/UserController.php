@@ -11,6 +11,21 @@ use Inertia\Inertia;
 class UserController extends Controller
 {
     /**
+     * Constructor - Pastikan hanya manager/co-manager yang bisa akses
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user || !in_array($user->role, ['manager', 'co_manager'])) {
+                return redirect('/dashboard')->with('error', 'Anda tidak memiliki akses ke manajemen user.');
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * Menampilkan daftar user
      */
     public function index(Request $request)
@@ -29,6 +44,10 @@ class UserController extends Controller
         return Inertia::render('Users/Index', [
             'users' => $users,
             'filters' => $request->only(['search']),
+            'flash' => [
+                'message' => session('message'),
+                'error' => session('error'),
+            ],
         ]);
     }
 
@@ -37,11 +56,16 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        // Validasi agar co-manager tidak bisa membuat manager
+        if (auth()->user()->role === 'co_manager' && $request->role === 'manager') {
+            return redirect()->back()->with('error', 'Co-Manager tidak bisa membuat user dengan role Manager.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', Rules\Password::defaults()],
-            'role' => 'required|in:manager,co_manager,staff', // Sesuaikan role dengan kebutuhan
+            'role' => 'required|in:manager,co_manager,staff',
         ]);
 
         User::create([
@@ -60,6 +84,16 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
+
+        // Validasi agar co-manager tidak bisa mengubah role manager
+        if (auth()->user()->role === 'co_manager' && $user->role === 'manager') {
+            return redirect()->back()->with('error', 'Co-Manager tidak bisa mengubah data Manager.');
+        }
+
+        // Validasi agar co-manager tidak bisa membuat user baru menjadi manager
+        if (auth()->user()->role === 'co_manager' && $request->role === 'manager') {
+            return redirect()->back()->with('error', 'Co-Manager tidak bisa mengangkat user menjadi Manager.');
+        }
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -83,7 +117,7 @@ class UserController extends Controller
 
         $user->save();
 
-        return redirect()->back()->with('message', 'Data user diperbarui.');
+        return redirect()->back()->with('message', 'Data user berhasil diperbarui.');
     }
 
     /**
@@ -96,6 +130,11 @@ class UserController extends Controller
         // Mencegah user menghapus dirinya sendiri
         if (auth()->id() === $user->id) {
             return redirect()->back()->with('error', 'Anda tidak bisa menghapus akun sendiri.');
+        }
+
+        // Mencegah co-manager menghapus manager
+        if (auth()->user()->role === 'co_manager' && $user->role === 'manager') {
+            return redirect()->back()->with('error', 'Co-Manager tidak bisa menghapus Manager.');
         }
 
         $user->delete();

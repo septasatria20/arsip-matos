@@ -3,14 +3,29 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
-  Shield, Mail, X, Save, Check, Eye, EyeOff 
+  Shield, Mail, X, Save, Check, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
 
-export default function UserIndex({ auth, users, filters }) {
+export default function UserIndex({ auth, users, filters, flash }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
+  const [flashMessage, setFlashMessage] = useState(null);
+
+  // Cek flash messages dari Laravel
+  React.useEffect(() => {
+    if (flash?.message) {
+      setFlashMessage({ type: 'success', text: flash.message });
+      const timer = setTimeout(() => setFlashMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+    if (flash?.error) {
+      setFlashMessage({ type: 'error', text: flash.error });
+      const timer = setTimeout(() => setFlashMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [flash]);
 
   // Form State untuk Create/Edit
   const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
@@ -83,6 +98,23 @@ export default function UserIndex({ auth, users, filters }) {
 
       <div className="max-w-7xl mx-auto animate-fade-in pb-10">
         
+        {/* Flash Message */}
+        {flashMessage && (
+          <div className={`mb-6 p-4 rounded-xl border ${
+            flashMessage.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          } flex items-center justify-between animate-fade-in`}>
+            <div className="flex items-center">
+              {flashMessage.type === 'success' ? <Check className="mr-3" size={20} /> : <AlertCircle className="mr-3" size={20} />}
+              <span className="font-medium">{flashMessage.text}</span>
+            </div>
+            <button onClick={() => setFlashMessage(null)} className="text-slate-400 hover:text-slate-600">
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -116,7 +148,11 @@ export default function UserIndex({ auth, users, filters }) {
 
         {/* User List Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {users.map((user) => (
+          {users.map((user) => {
+            // Co-manager tidak bisa edit/delete manager
+            const canModify = auth.user.role === 'manager' || (auth.user.role === 'co_manager' && user.role !== 'manager');
+            
+            return (
             <div key={user.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all relative group">
                <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
@@ -135,6 +171,7 @@ export default function UserIndex({ auth, users, filters }) {
                      </div>
                   </div>
                   
+                  {canModify && (
                   <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                      <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors">
                         <Edit size={16} />
@@ -145,6 +182,7 @@ export default function UserIndex({ auth, users, filters }) {
                        </button>
                      )}
                   </div>
+                  )}
                </div>
                
                <div className="space-y-2">
@@ -152,11 +190,11 @@ export default function UserIndex({ auth, users, filters }) {
                      <Mail size={14} className="mr-2 text-slate-400" /> {user.email}
                   </div>
                   <div className="flex items-center text-sm text-slate-500">
-                     <Shield size={14} className="mr-2 text-slate-400" /> Akses: {user.role === 'manager' ? 'Full Access' : 'Limited'}
+                     <Shield size={14} className="mr-2 text-slate-400" /> Akses: {user.role === 'manager' ? 'Full Access' : user.role === 'co_manager' ? 'Supervisor' : 'Limited'}
                   </div>
                </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {users.length === 0 && (
@@ -211,7 +249,10 @@ export default function UserIndex({ auth, users, filters }) {
                     >
                        <option value="staff">Staff (Standard)</option>
                        <option value="co_manager">Co-Manager (Supervisor)</option>
-                       <option value="manager">Manager (Admin)</option>
+                       {/* Hanya Manager yang bisa membuat/mengubah role Manager */}
+                       {auth.user.role === 'manager' && (
+                         <option value="manager">Manager (Admin)</option>
+                       )}
                     </select>
                     {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
                  </div>

@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -42,4 +43,36 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Check if user is a manager
+     */
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
+    /**
+     * Check if user is a co-manager
+     */
+    public function isCoManager(): bool
+    {
+        return $this->role === 'co_manager';
+    }
+
+    /**
+     * Check if user is a staff
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    /**
+     * Check if user can manage other users (manager or co-manager)
+     */
+    public function canManageUsers(): bool
+    {
+        return in_array($this->role, ['manager', 'co_manager']);
+    }
 }
