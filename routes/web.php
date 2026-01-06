@@ -87,3 +87,25 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+// --- TAMBAHAN: RUTE KHUSUS UNTUK MENAMPILKAN GAMBAR (Start) ---
+use Illuminate\Support\Facades\Response;
+
+Route::get('/storage/{path}', function ($path) {
+    // Cari file di folder penyimpanan asli (storage/app/public)
+    $filePath = storage_path('app/public/' . $path);
+
+    // Jika file tidak ada, tampilkan 404
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+
+    // Tampilkan file gambar ke browser
+    $file = file_get_contents($filePath);
+    $type = mime_content_type($filePath);
+
+    return Response::make($file, 200, [
+        'Content-Type' => $type,
+    ]);
+})->where('path', '.*'); // Regex agar bisa membaca sub-folder (misal: settings/sliders/...)
+// --- TAMBAHAN (End) ---
