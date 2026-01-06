@@ -73,7 +73,7 @@ class SearchController extends Controller
 
         // Search Inventories (only for manager/admin)
         $inventories = collect([]);
-        if ($role === 'manager' || $role === 'admin') {
+        if ($role === 'manager' || $role === 'co_manager') {
             $inventories = Inventory::query()
                 ->where(function($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")

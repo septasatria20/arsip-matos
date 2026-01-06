@@ -5,12 +5,13 @@ use App\Http\Controllers\ConfirmationLetterController;
 use App\Http\Controllers\EventReportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\BudgetController;
-use App\Http\Controllers\DashboardController; // Import Controller
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-Use App\Http\Controllers\UserController;
 
 
 /*
@@ -39,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // 1b. Search
     Route::get('/search', [SearchController::class, 'search'])->name('search');
+    
+    // 1c. Notifications
+    Route::get('/api/notifications', [NotificationController::class, 'index'])->name('notifications');
 
     // 2. Confirmation Letter (Surat)
     Route::get('/confirmation-letter', [ConfirmationLetterController::class, 'index'])->name('confirmation.index');
