@@ -32,8 +32,8 @@ class SearchController extends Controller
         $letters = $lettersQuery
             ->where(function($q) use ($query) {
                 $q->where('event_name', 'like', "%{$query}%")
-                  ->orWhere('letter_number', 'like', "%{$query}%")
-                  ->orWhere('partner_name', 'like', "%{$query}%");
+                  ->orWhere('eo_name', 'like', "%{$query}%")
+                  ->orWhere('category', 'like', "%{$query}%");
             })
             ->limit(5)
             ->get()
@@ -41,7 +41,7 @@ class SearchController extends Controller
                 return [
                     'id' => $item->id,
                     'title' => $item->event_name,
-                    'subtitle' => $item->letter_number ?? 'No Surat',
+                    'subtitle' => $item->eo_name ?? 'No EO',
                     'status' => $item->status,
                     'type' => 'letter',
                     'url' => route('confirmation.index')
@@ -67,7 +67,7 @@ class SearchController extends Controller
                     'subtitle' => $item->location ?? 'Lokasi',
                     'status' => $item->status,
                     'type' => 'event',
-                    'url' => route('events.index')
+                    'url' => route('laporan.index')
                 ];
             });
 
@@ -89,7 +89,7 @@ class SearchController extends Controller
                         'subtitle' => $item->code ?? 'Kode',
                         'status' => $item->condition,
                         'type' => 'inventory',
-                        'url' => route('inventory.index')
+                        'url' => route('inventories.index')
                     ];
                 });
         }

@@ -14,6 +14,8 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
   const [searchResults, setSearchResults] = useState({ letters: [], events: [], inventories: [] });
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
   
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -54,6 +56,24 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch Notifications
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = () => {
+    setNotifLoading(true);
+    window.axios.get('/api/notifications')
+      .then(response => {
+        setNotifications(response.data);
+        setNotifLoading(false);
+      })
+      .catch(error => {
+        console.error('Notification error:', error);
+        setNotifLoading(false);
+      });
+  };
 
   // Handle Search
   useEffect(() => {
@@ -220,7 +240,9 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
                     className={`relative p-2 rounded-full transition-colors ${notifOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
                 >
                   <Bell size={20} />
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+                  )}
                 </button>
 
                 {/* Notif Menu */}
@@ -228,28 +250,30 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
                     <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
                         <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
                             <span className="font-bold text-sm text-slate-700">Notifikasi</span>
-                            <span className="text-xs text-indigo-600 cursor-pointer hover:underline">Tandai semua dibaca</span>
+                            <span className="text-xs text-slate-500">{notifications.length} item</span>
                         </div>
                         <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                            {/* Mock Notification Items */}
-                            <div className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50">
-                                <div className="flex items-start">
-                                    <div className="mt-1 p-1.5 bg-green-100 text-green-600 rounded-full mr-3"><Check size={12}/></div>
-                                    <div>
-                                        <p className="text-sm text-slate-700 font-medium">Surat "Kerjasama Skin+" disetujui</p>
-                                        <p className="text-xs text-slate-400 mt-0.5">Baru saja</p>
+                            {notifLoading ? (
+                                <div className="px-4 py-8 text-center text-sm text-slate-500">Memuat...</div>
+                            ) : notifications.length > 0 ? (
+                                notifications.map((notif, index) => (
+                                    <div key={index} className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0" onClick={() => router.visit(notif.url)}>
+                                        <div className="flex items-start">
+                                            <div className={`mt-1 p-1.5 rounded-full mr-3 ${notif.type === 'approved' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                {notif.type === 'approved' ? <Check size={12}/> : <Bell size={12}/>}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-slate-700 font-medium truncate">{notif.title}</p>
+                                                <p className="text-xs text-slate-400 mt-0.5">{notif.time}</p>
+                                            </div>
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="px-4 py-8 text-center text-sm text-slate-400">
+                                    Tidak ada notifikasi
                                 </div>
-                            </div>
-                            <div className="px-4 py-3 hover:bg-slate-50 cursor-pointer">
-                                <div className="flex items-start">
-                                    <div className="mt-1 p-1.5 bg-blue-100 text-blue-600 rounded-full mr-3"><Bell size={12}/></div>
-                                    <div>
-                                        <p className="text-sm text-slate-700 font-medium">Pengingat: Laporan Event Cosplay</p>
-                                        <p className="text-xs text-slate-400 mt-0.5">2 jam yang lalu</p>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
                         </div>
                         <div className="px-4 py-2 border-t border-slate-50 text-center">
                             <Link href="#" className="text-xs font-bold text-slate-500 hover:text-indigo-600">Lihat Semua Aktivitas</Link>

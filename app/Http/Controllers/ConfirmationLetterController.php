@@ -6,6 +6,7 @@ use App\Models\ConfirmationLetter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
@@ -105,8 +106,8 @@ class ConfirmationLetterController extends Controller
                 'signatures.*.jabatan' => 'required|string',
             ]);
 
-            $data['pihak_pertama_nama'] = 'Listyo Rahayu';
-            $data['pihak_pertama_jabatan'] = 'Marcomm Manager';
+            $data['pihak_pertama_nama'] = auth()->user()->name;
+            $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Staff');
 
             // Render PDF tapi jangan disimpan, langsung stream ke browser
             $pdf = Pdf::loadView('pdf.confirmation_letter_template', compact('data'));
@@ -118,7 +119,7 @@ class ConfirmationLetterController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Preview PDF Error: ' . $e->getMessage());
+            Log::error('Preview PDF Error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
@@ -145,8 +146,8 @@ class ConfirmationLetterController extends Controller
             'signatures.*.jabatan' => 'required|string',
         ]);
 
-        $data['pihak_pertama_nama'] = 'Listyo Rahayu';
-        $data['pihak_pertama_jabatan'] = 'Marcomm Manager';
+        $data['pihak_pertama_nama'] = auth()->user()->name;
+        $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Staff');
         
         $fileName = 'CL_' . time() . '_' . str_replace(' ', '_', $data['pihak_kedua_instansi']) . '.pdf';
         $filePath = 'letters/' . $fileName;

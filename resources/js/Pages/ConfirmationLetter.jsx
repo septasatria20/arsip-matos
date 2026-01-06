@@ -147,7 +147,7 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
     poin_support_pihak_pertama: [''],
     poin_support_pihak_kedua: [''],
     signatures: [
-        { label: 'Pihak Pertama', nama: 'Listyo Rahayu', jabatan: 'Marcomm Manager' },
+        { label: 'Pihak Pertama', nama: auth.user.name, jabatan: auth.user.role === 'manager' ? 'Manager' : auth.user.role === 'co_manager' ? 'Co-Manager' : 'Staff' },
         { label: 'Pihak Kedua', nama: '', jabatan: '' }
     ]
   });
@@ -609,10 +609,10 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                 
                 <form id="form-generator" onSubmit={submitGenerator} className="p-8 space-y-6">
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
-                        <h3 className="font-bold text-blue-800 text-sm mb-2">Pihak Pertama (Otomatis)</h3>
+                        <h3 className="font-bold text-blue-800 text-sm mb-2">Pihak Pertama (Otomatis - User Login)</h3>
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div><span className="text-slate-500">Nama:</span> <b>Listyo Rahayu</b></div>
-                            <div><span className="text-slate-500">Jabatan:</span> <b>Marcomm Manager</b></div>
+                            <div><span className="text-slate-500">Nama:</span> <b>{auth.user.name}</b></div>
+                            <div><span className="text-slate-500">Jabatan:</span> <b>{auth.user.role === 'manager' ? 'Manager' : auth.user.role === 'co_manager' ? 'Co-Manager' : 'Staff'}</b></div>
                         </div>
                     </div>
 
