@@ -67,7 +67,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/budgeting/transaction/{id}', [BudgetController::class, 'update'])->name('budgeting.update');
     Route::patch('/budgeting/transaction/{id}/status', [BudgetController::class, 'updateStatus'])->name('budgeting.status');
     Route::delete('/budgeting/transaction/{id}', [BudgetController::class, 'destroy'])->name('budgeting.destroy');
-    Route::post('/budgeting/set-budget', [BudgetController::class, 'storeBudget'])->name('budgeting.update_budget');
+    Route::post('/budgeting/set-budget', [BudgetController::class, 'storeBudget'])->name('budgeting.storeBudget');
     Route::get('/budgeting/export', [BudgetController::class, 'export'])->name('budgeting.export');
     Route::post('/budgeting/upload-old', [BudgetController::class, 'storeOldFile'])->name('budgeting.upload_old');
     Route::delete('/budgeting/old-file/{id}', [BudgetController::class, 'destroyOldFile'])->name('budgeting.destroy_old');
