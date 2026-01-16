@@ -90,6 +90,148 @@ const SimpleBarChart = ({ data }) => {
   );
 };
 
+// Grafik Batang untuk Event Per Bulan
+const EventBarChart = ({ data }) => {
+  if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data event</div>;
+
+  const maxVal = Math.max(...data.map(d => d.total || 0), 1);
+  const scale = 180 / maxVal;
+
+  return (
+    <div className="w-full">
+      <div className="flex items-end justify-between h-64 w-full gap-2 px-2">
+        {data.map((item, idx) => {
+          const total = item.total || 0;
+          const heightPx = total > 0 ? Math.max(total * scale, 16) : 6;
+
+          return (
+            <div key={idx} className="flex flex-col items-center flex-1 min-w-0">
+              <div className="relative w-full h-56 flex items-end justify-center group">
+                {total > 0 && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-3 rounded-lg whitespace-nowrap pointer-events-none shadow-lg z-10">
+                    {item.month}: {total} Event
+                  </div>
+                )}
+                <div className="w-5 sm:w-6 bg-slate-100 rounded-lg overflow-hidden relative flex items-end">
+                  <div
+                    style={{ height: `${heightPx}px` }}
+                    className="w-full bg-purple-500 rounded-t-lg transition-all duration-200"
+                  ></div>
+                </div>
+              </div>
+              <span className="text-xs text-slate-600 font-medium mt-3">{item.month}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Grafik Garis untuk Budgeting
+const BudgetingLineChart = ({ data }) => {
+  if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data budgeting</div>;
+
+  const maxVal = Math.max(
+    ...data.map(d => Math.max(d.income || 0, d.expense || 0)),
+    1000000
+  );
+  const scale = 180 / maxVal;
+
+  // Format Rupiah singkat
+  const formatShort = (val) => {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val;
+  };
+
+  return (
+    <div className="w-full">
+      <div className="relative h-64 w-full px-2">
+        <svg className="w-full h-full" viewBox="0 0 600 200" preserveAspectRatio="none">
+          {/* Grid lines */}
+          {[0, 25, 50, 75, 100].map((pct) => (
+            <line
+              key={pct}
+              x1="0"
+              y1={200 - (pct * 2)}
+              x2="600"
+              y2={200 - (pct * 2)}
+              stroke="#f1f5f9"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Income line (green) */}
+          <polyline
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="3"
+            points={data
+              .map((item, idx) => {
+                const x = (idx / (data.length - 1)) * 600;
+                const y = 200 - (item.income || 0) * scale;
+                return `${x},${y}`;
+              })
+              .join(' ')}
+          />
+
+          {/* Expense line (red) */}
+          <polyline
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth="3"
+            points={data
+              .map((item, idx) => {
+                const x = (idx / (data.length - 1)) * 600;
+                const y = 200 - (item.expense || 0) * scale;
+                return `${x},${y}`;
+              })
+              .join(' ')}
+          />
+
+          {/* Income dots */}
+          {data.map((item, idx) => {
+            const x = (idx / (data.length - 1)) * 600;
+            const y = 200 - (item.income || 0) * scale;
+            return (
+              <circle key={`income-${idx}`} cx={x} cy={y} r="4" fill="#10b981" className="hover:r-6 transition-all" />
+            );
+          })}
+
+          {/* Expense dots */}
+          {data.map((item, idx) => {
+            const x = (idx / (data.length - 1)) * 600;
+            const y = 200 - (item.expense || 0) * scale;
+            return (
+              <circle key={`expense-${idx}`} cx={x} cy={y} r="4" fill="#ef4444" className="hover:r-6 transition-all" />
+            );
+          })}
+        </svg>
+
+        {/* Month labels */}
+        <div className="flex justify-between mt-4">
+          {data.map((item, idx) => (
+            <span key={idx} className="text-xs text-slate-600 font-medium">{item.month}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+          <span className="text-sm text-slate-600">Pemasukan</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+          <span className="text-sm text-slate-600">Pengeluaran</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start">
@@ -105,7 +247,7 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
   </div>
 );
 
-export default function Dashboard({ auth, statsData, chartData, recentActivities, userRole, availableYears, selectedYear }) {
+export default function Dashboard({ auth, statsData, chartData, recentActivities, userRole, availableYears, selectedYear, eventsChartData, budgetingChartData }) {
   const role = userRole || auth?.user?.role || 'manager';
   const isAdmin = role === 'admin';
   
@@ -115,9 +257,11 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
   const recent = recentActivities || [];
   const years = availableYears || [new Date().getFullYear()];
   const currentYear = selectedYear || new Date().getFullYear();
+  const eventsChart = eventsChartData || [];
+  const budgetingChart = budgetingChartData || [];
 
   // Debug: Log data untuk melihat apa yang diterima
-  console.log('Dashboard Data:', { stats, chart, recent, role, years, currentYear });
+  console.log('Dashboard Data:', { stats, chart, recent, role, years, currentYear, eventsChart, budgetingChart });
   
   // Handle year change
   const handleYearChange = (year) => {
@@ -245,6 +389,22 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                 </div>
                 <SimpleBarChart data={chart} />
              </div>
+
+             {/* Grafik Event per Bulan */}
+             {eventsChartData && eventsChartData.length > 0 && (
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                 <h3 className="font-bold text-slate-800 mb-6">Jumlah Event per Bulan ({currentYear})</h3>
+                 <EventBarChart data={eventsChartData} />
+               </div>
+             )}
+
+             {/* Grafik Budgeting untuk Manager/Co-Manager */}
+             {!isAdmin && budgetingChartData && budgetingChartData.length > 0 && (
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                 <h3 className="font-bold text-slate-800 mb-6">Pemasukan & Pengeluaran per Bulan ({currentYear})</h3>
+                 <BudgetingLineChart data={budgetingChartData} />
+               </div>
+             )}
 
              {/* Grafik Additional untuk Manager */}
              {!isAdmin && (

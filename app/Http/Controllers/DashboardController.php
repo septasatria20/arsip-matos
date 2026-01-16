@@ -132,13 +132,71 @@ class DashboardController extends Controller
         });
         $recentActivities = array_slice($allActivities, 0, 5);
 
+        // === GRAFIK EVENT PER BULAN (untuk semua role kecuali admin filter by user) ===
+        $eventsChartData = EventReport::select(
+                DB::raw('MONTH(event_date) as month'),
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereYear('event_date', $selectedYear)
+            ->when($role === 'admin', function($q) use ($user) {
+                return $q->where('user_id', $user->id);
+            })
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $formattedEventsChart = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthData = $eventsChartData->firstWhere('month', $i);
+            $formattedEventsChart[] = [
+                'month' => date("M", mktime(0, 0, 0, $i, 1)),
+                'total' => $monthData ? (int)$monthData->total : 0,
+            ];
+        }
+
+        // === GRAFIK BUDGETING PEMASUKAN & PENGELUARAN PER BULAN (hanya untuk manager/co-manager) ===
+        $budgetingChartData = [];
+        if ($role !== 'admin') {
+            $incomeChart = Transaction::select(
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(nominal) as total')
+                )
+                ->where('type', 'income')
+                ->whereYear('transaction_date', $selectedYear)
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get();
+
+            $expenseChart = Transaction::select(
+                    DB::raw('MONTH(transaction_date) as month'),
+                    DB::raw('SUM(nominal) as total')
+                )
+                ->where('type', 'expense')
+                ->whereYear('transaction_date', $selectedYear)
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get();
+
+            for ($i = 1; $i <= 12; $i++) {
+                $incomeData = $incomeChart->firstWhere('month', $i);
+                $expenseData = $expenseChart->firstWhere('month', $i);
+                $budgetingChartData[] = [
+                    'month' => date("M", mktime(0, 0, 0, $i, 1)),
+                    'income' => $incomeData ? (int)$incomeData->total : 0,
+                    'expense' => $expenseData ? (int)$expenseData->total : 0,
+                ];
+            }
+        }
+
         return Inertia::render('Dashboard', [
             'statsData' => $statsData,
             'chartData' => $chartData,
             'recentActivities' => $recentActivities,
             'userRole' => $role,
             'availableYears' => $availableYears,
-            'selectedYear' => (int)$selectedYear
+            'selectedYear' => (int)$selectedYear,
+            'eventsChartData' => $formattedEventsChart,
+            'budgetingChartData' => $budgetingChartData,
         ]);
     }
 }

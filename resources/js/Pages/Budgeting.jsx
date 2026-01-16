@@ -25,7 +25,7 @@ const formatDate = (dateString) => {
   });
 };
 
-export default function Budgeting({ auth, monthlyOverview, incomeData, expenseData, selectedYear, oldBudgetFiles }) {
+export default function Budgeting({ auth, monthlyOverview, incomeOverview, expenseOverview, incomeData, expenseData, selectedYear, oldBudgetFiles }) {
   const { flash } = usePage().props;
   const currentYear = selectedYear || new Date().getFullYear().toString();
   
@@ -458,6 +458,68 @@ export default function Budgeting({ auth, monthlyOverview, incomeData, expenseDa
                              <td className="p-4 text-right text-red-700">{formatRupiah(totalExpense)}</td>
                              <td className={`p-4 text-right ${totalRemaining < 0 ? 'text-red-700' : 'text-green-700'}`}>{formatRupiah(totalRemaining)}</td>
                           </tr>
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+
+              {/* TABEL OVERVIEW PEMASUKAN */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+                 <div className="p-4 bg-green-50 border-b border-green-200 font-bold text-green-700">Overview Pemasukan Bulanan ({currentYear})</div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                       <thead>
+                          <tr className="bg-green-50 border-b border-green-200">
+                             <th className="p-4 text-xs font-bold text-green-700 uppercase text-center w-16">No</th>
+                             <th className="p-4 text-xs font-bold text-green-700 uppercase">Bulan</th>
+                             <th className="p-4 text-xs font-bold text-green-700 uppercase text-right">Budget Target Pemasukan</th>
+                             <th className="p-4 text-xs font-bold text-green-700 uppercase text-right">Pemasukan</th>
+                             <th className="p-4 text-xs font-bold text-green-700 uppercase text-right">Selisih</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                          {incomeOverview && incomeOverview.map((item, index) => (
+                             <tr key={index} className="hover:bg-slate-50">
+                                <td className="p-4 text-center text-sm text-slate-500">{index + 1}</td>
+                                <td className="p-4 text-sm font-medium text-slate-800">{item.month}</td>
+                                <td className="p-4 text-sm text-right text-slate-600">{formatRupiah(item.budget)}</td>
+                                <td className="p-4 text-sm text-right text-green-600">{formatRupiah(item.actual)}</td>
+                                <td className={`p-4 text-sm text-right font-bold ${item.diff < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                   {formatRupiah(item.diff)}
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+
+              {/* TABEL OVERVIEW PENGELUARAN */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+                 <div className="p-4 bg-red-50 border-b border-red-200 font-bold text-red-700">Overview Pengeluaran Bulanan ({currentYear})</div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                       <thead>
+                          <tr className="bg-red-50 border-b border-red-200">
+                             <th className="p-4 text-xs font-bold text-red-700 uppercase text-center w-16">No</th>
+                             <th className="p-4 text-xs font-bold text-red-700 uppercase">Bulan</th>
+                             <th className="p-4 text-xs font-bold text-red-700 uppercase text-right">Budget Pengeluaran</th>
+                             <th className="p-4 text-xs font-bold text-red-700 uppercase text-right">Pengeluaran</th>
+                             <th className="p-4 text-xs font-bold text-red-700 uppercase text-right">Selisih</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                          {expenseOverview && expenseOverview.map((item, index) => (
+                             <tr key={index} className="hover:bg-slate-50">
+                                <td className="p-4 text-center text-sm text-slate-500">{index + 1}</td>
+                                <td className="p-4 text-sm font-medium text-slate-800">{item.month}</td>
+                                <td className="p-4 text-sm text-right text-slate-600">{formatRupiah(item.budget)}</td>
+                                <td className="p-4 text-sm text-right text-red-600">{formatRupiah(item.actual)}</td>
+                                <td className={`p-4 text-sm text-right font-bold ${item.diff < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                   {formatRupiah(item.diff)}
+                                </td>
+                             </tr>
+                          ))}
                        </tbody>
                     </table>
                  </div>

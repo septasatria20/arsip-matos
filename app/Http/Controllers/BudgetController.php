@@ -98,9 +98,41 @@ class BudgetController extends Controller
         // 6. Ambil Data File Budget Lama
         $oldBudgetFiles = OldBudgetFile::latest()->get();
 
-        // 7. Kirim semua data ke React (Inertia)
+        // 7. Buat Overview Pemasukan Terpisah
+        $incomeOverview = [];
+        foreach ($months as $num => $name) {
+            $budgetIncome = $budgets[$num]->income_target ?? 0; // Jika ada kolom income_target di budget
+            $actualIncome = $incomes[$num]->total_income ?? 0;
+            
+            $incomeOverview[] = [
+                'month_num' => $num,
+                'month' => $name,
+                'budget' => $budgetIncome,
+                'actual' => $actualIncome,
+                'diff' => $actualIncome - $budgetIncome
+            ];
+        }
+
+        // 8. Buat Overview Pengeluaran Terpisah
+        $expenseOverview = [];
+        foreach ($months as $num => $name) {
+            $budgetExpense = $budgets[$num]->amount ?? 0; // amount adalah budget pengeluaran
+            $actualExpense = $expenses[$num]->total_expense ?? 0;
+            
+            $expenseOverview[] = [
+                'month_num' => $num,
+                'month' => $name,
+                'budget' => $budgetExpense,
+                'actual' => $actualExpense,
+                'diff' => $budgetExpense - $actualExpense
+            ];
+        }
+
+        // 9. Kirim semua data ke React (Inertia)
         return Inertia::render('Budgeting', [
             'monthlyOverview' => $monthlyOverview,
+            'incomeOverview' => $incomeOverview,
+            'expenseOverview' => $expenseOverview,
             'incomeData' => $incomeData,
             'expenseData' => $expenseData,
             'selectedYear' => $selectedYear,
