@@ -13,7 +13,7 @@ import {
 export default function Sidebar({ open, setOpen }) {
   const { url, props } = usePage();
   const user = props.auth.user;
-  const isStaff = user.role === 'staff';
+  const isAdmin = user.role === 'admin';
 
   // Helper untuk cek menu aktif (pastikan url ada)
   const isActive = (path) => url.startsWith(path);
@@ -66,16 +66,16 @@ export default function Sidebar({ open, setOpen }) {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" href="/dashboard" active={isActive('/dashboard')} />
           <SidebarItem icon={FileText} label="Confirmation Letter" href="/confirmation-letter" active={isActive('/confirmation-letter')} />
           <SidebarItem icon={CheckCircle} label="Laporan Event" href="/laporan-event" active={isActive('/laporan-event')} />
+          <SidebarItem icon={Box} label="Inventaris Marcom" href="/inventaris" active={isActive('/inventaris')} />
           
-          {!isStaff && (
+          {!isAdmin && (
             <>
-              <SidebarItem icon={Box} label="Inventaris Marcom" href="/inventaris" active={isActive('/inventaris')} />
               <SidebarItem icon={PieChart} label="Budgeting" href="/budgeting" active={isActive('/budgeting')} />
             </>
           )}
         </div>
 
-        {!isStaff && (
+        {!isAdmin && (
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-3">Admin Zone</p>
             <SidebarItem icon={Users} label="Manajemen User" href="/users" active={isActive('/users')} />
@@ -92,7 +92,7 @@ export default function Sidebar({ open, setOpen }) {
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-slate-700 truncate">{user.name}</p>
-            <p className="text-xs text-slate-500 truncate capitalize">{user.role ? user.role.replace('_', ' ') : 'Staff'}</p>
+            <p className="text-xs text-slate-500 truncate capitalize">{user.role ? user.role.replace('_', ' ') : 'Admin'}</p>
           </div>
         </div>
       </div>

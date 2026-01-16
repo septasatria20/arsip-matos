@@ -2,24 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/Components/Sidebar';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
-  Menu, Search, Bell, ChevronDown, 
-  LogOut, User, Settings, Check, FileText, Calendar, Package 
+  Menu, Bell, ChevronDown, 
+  LogOut, User, Check
 } from 'lucide-react';
 
 export default function AuthenticatedLayout({ user, header, children, title }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState({ letters: [], events: [], inventories: [] });
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
   
   const profileRef = useRef(null);
   const notifRef = useRef(null);
-  const searchRef = useRef(null);
 
   // Handle Resize: Auto-close sidebar on mobile, Auto-open on desktop
   useEffect(() => {
@@ -49,9 +44,6 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setNotifOpen(false);
       }
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setSearchOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -75,57 +67,6 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
       });
   };
 
-  // Handle Search
-  useEffect(() => {
-    if (searchQuery.length < 2) {
-      setSearchResults({ letters: [], events: [], inventories: [] });
-      setSearchOpen(false);
-      return;
-    }
-
-    const delaySearch = setTimeout(() => {
-      setSearchLoading(true);
-      window.axios.get('/search', { params: { q: searchQuery } })
-        .then(response => {
-          setSearchResults(response.data);
-          setSearchOpen(true);
-          setSearchLoading(false);
-        })
-        .catch(error => {
-          console.error('Search error:', error);
-          setSearchLoading(false);
-        });
-    }, 300);
-
-    return () => clearTimeout(delaySearch);
-  }, [searchQuery]);
-
-  const handleSearchResultClick = (url) => {
-    router.visit(url);
-    setSearchQuery('');
-    setSearchOpen(false);
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700',
-      good: 'bg-green-100 text-green-700',
-      damaged: 'bg-red-100 text-red-700'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-700';
-  };
-
-  const getTypeIcon = (type) => {
-    switch(type) {
-      case 'letter': return <FileText size={16} />;
-      case 'event': return <Calendar size={16} />;
-      case 'inventory': return <Package size={16} />;
-      default: return <FileText size={16} />;
-    }
-  };
-
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden relative">
       <Head title={title} />
@@ -146,89 +87,7 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
               <Menu size={22} />
             </button>
             
-            {/* Search Bar */}
-            <div className="hidden md:flex relative group max-w-md w-full transition-all" ref={searchRef}>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-              <input 
-                type="text" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari surat, event, atau barang..." 
-                className="pl-10 pr-4 py-2 bg-slate-100 border border-transparent focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100/50 rounded-full text-sm w-full transition-all outline-none placeholder:text-slate-400"
-              />
-              
-              {/* Search Results Dropdown */}
-              {searchOpen && (searchResults.letters.length > 0 || searchResults.events.length > 0 || searchResults.inventories.length > 0) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 max-h-96 overflow-y-auto">
-                  
-                  {searchResults.letters.length > 0 && (
-                    <div className="mb-2">
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Confirmation Letter</div>
-                      {searchResults.letters.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSearchResultClick(item.url)}
-                          className="w-full px-4 py-2 hover:bg-slate-50 text-left flex items-start gap-3"
-                        >
-                          <div className="mt-1 p-2 bg-blue-50 text-blue-600 rounded-lg">{getTypeIcon(item.type)}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p>
-                            <p className="text-xs text-slate-500">{item.subtitle}</p>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>{item.status}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {searchResults.events.length > 0 && (
-                    <div className="mb-2">
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Laporan Event</div>
-                      {searchResults.events.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSearchResultClick(item.url)}
-                          className="w-full px-4 py-2 hover:bg-slate-50 text-left flex items-start gap-3"
-                        >
-                          <div className="mt-1 p-2 bg-purple-50 text-purple-600 rounded-lg">{getTypeIcon(item.type)}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p>
-                            <p className="text-xs text-slate-500">{item.subtitle}</p>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>{item.status}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {searchResults.inventories.length > 0 && (
-                    <div>
-                      <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Inventaris</div>
-                      {searchResults.inventories.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSearchResultClick(item.url)}
-                          className="w-full px-4 py-2 hover:bg-slate-50 text-left flex items-start gap-3"
-                        >
-                          <div className="mt-1 p-2 bg-green-50 text-green-600 rounded-lg">{getTypeIcon(item.type)}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 truncate">{item.title}</p>
-                            <p className="text-xs text-slate-500">{item.subtitle}</p>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(item.status)}`}>{item.status}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {searchLoading && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-4 z-50 text-center text-sm text-slate-500">
-                  Mencari...
-                </div>
-              )}
-            </div>
+            <div className="flex-1"></div>
           </div>
 
           <div className="flex items-center space-x-3 sm:space-x-4 ml-4">

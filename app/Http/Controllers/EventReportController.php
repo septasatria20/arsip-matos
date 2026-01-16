@@ -27,8 +27,8 @@ class EventReportController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter Role Staff (Hanya lihat punya sendiri)
-        if (auth()->user()->role === 'staff') {
+        // Filter Role Admin (Hanya lihat punya sendiri)
+        if (auth()->user()->role === 'admin') {
             $query->where('user_id', auth()->id());
         }
 

@@ -17,8 +17,8 @@ class ConfirmationLetterController extends Controller
     {
         $query = ConfirmationLetter::with('user');
 
-        // FILTER ROLE: Jika Staff, hanya lihat punya sendiri
-        if (auth()->user()->role === 'staff') {
+        // FILTER ROLE: Jika Admin, hanya lihat punya sendiri
+        if (auth()->user()->role === 'admin') {
             $query->where('user_id', auth()->id());
         }
 

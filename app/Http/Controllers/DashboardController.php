@@ -24,8 +24,8 @@ class DashboardController extends Controller
         $lettersQuery = ConfirmationLetter::query();
         $eventsQuery = EventReport::query();
         
-        // Jika Staff, hanya tampilkan data miliknya
-        if ($role === 'staff') {
+        // Jika Admin, hanya tampilkan data miliknya
+        if ($role === 'admin') {
             $lettersQuery->where('user_id', $user->id);
             $eventsQuery->where('user_id', $user->id);
         }
@@ -43,15 +43,15 @@ class DashboardController extends Controller
             'pending_events' => (clone $eventsQuery)->where('status', 'pending')->count(),
             'approved_events' => (clone $eventsQuery)->where('status', 'approved')->count(),
             
-            // Inventory (Only for Manager/Admin)
-            'total_inventory' => $role !== 'staff' ? Inventory::count() : 0,
-            'good_condition' => $role !== 'staff' ? Inventory::where('condition', 'good')->count() : 0,
-            'damaged_condition' => $role !== 'staff' ? Inventory::where('condition', 'damaged')->count() : 0,
+            // Inventory (Semua role bisa akses)
+            'total_inventory' => Inventory::count(),
+            'good_condition' => Inventory::where('condition', 'good')->count(),
+            'damaged_condition' => Inventory::where('condition', 'damaged')->count(),
             
-            // Budgeting (Only for Manager/Admin)
-            'total_income' => $role !== 'staff' ? Transaction::where('type', 'income')->whereYear('transaction_date', date('Y'))->sum('nominal') : 0,
-            'total_expense' => $role !== 'staff' ? Transaction::where('type', 'expense')->whereYear('transaction_date', date('Y'))->sum('nominal') : 0,
-            'pending_transactions' => $role !== 'staff' ? Transaction::where('status', 'pending')->whereYear('transaction_date', date('Y'))->count() : 0,
+            // Budgeting (Only for Manager/Co-Manager)
+            'total_income' => $role !== 'admin' ? Transaction::where('type', 'income')->whereYear('transaction_date', date('Y'))->sum('nominal') : 0,
+            'total_expense' => $role !== 'admin' ? Transaction::where('type', 'expense')->whereYear('transaction_date', date('Y'))->sum('nominal') : 0,
+            'pending_transactions' => $role !== 'admin' ? Transaction::where('status', 'pending')->whereYear('transaction_date', date('Y'))->count() : 0,
         ];
 
         // === GRAFIK BULANAN REAL ===
@@ -80,7 +80,7 @@ class DashboardController extends Controller
         
         // Daftar tahun yang tersedia (dari data terakhir)
         $availableYears = ConfirmationLetter::selectRaw('DISTINCT YEAR(created_at) as year')
-            ->when($role === 'staff', function($q) use ($user) {
+            ->when($role === 'admin', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             })
             ->orderBy('year', 'desc')

@@ -37,11 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware(['auth', 'verified'])
         ->name('dashboard');
-
-    // 1b. Search
-    Route::get('/search', [SearchController::class, 'search'])->name('search');
     
-    // 1c. Notifications
+    // 1b. Notifications
     Route::get('/api/notifications', [NotificationController::class, 'index'])->name('notifications');
 
     // 2. Confirmation Letter (Surat)

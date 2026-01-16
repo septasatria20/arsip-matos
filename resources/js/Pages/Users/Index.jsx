@@ -33,7 +33,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
     name: '',
     email: '',
     password: '',
-    role: 'staff'
+    role: 'admin'
   });
 
   // Handle Search
@@ -59,7 +59,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
       name: user.name,
       email: user.email,
       password: '', // Kosongkan password saat edit
-      role: user.role || 'staff'
+      role: user.role || 'admin'
     });
     clearErrors();
     setIsModalOpen(true);
@@ -166,7 +166,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
                            user.role === 'co_manager' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                            'bg-slate-50 text-slate-600 border-slate-200'
                         }`}>
-                           {user.role ? user.role.replace('_', ' ').toUpperCase() : 'STAFF'}
+                           {user.role ? user.role.replace('_', ' ').toUpperCase() : 'ADMIN'}
                         </span>
                      </div>
                   </div>
@@ -190,7 +190,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
                      <Mail size={14} className="mr-2 text-slate-400" /> {user.email}
                   </div>
                   <div className="flex items-center text-sm text-slate-500">
-                     <Shield size={14} className="mr-2 text-slate-400" /> Akses: {user.role === 'manager' ? 'Full Access' : user.role === 'co_manager' ? 'Supervisor' : 'Limited'}
+                     <Shield size={14} className="mr-2 text-slate-400" /> Akses: {user.role === 'manager' ? 'Full Access' : user.role === 'co_manager' ? 'Full Access' : 'Limited'}
                   </div>
                </div>
             </div>
@@ -247,11 +247,11 @@ export default function UserIndex({ auth, users, filters, flash }) {
                        onChange={e => setData('role', e.target.value)}
                        className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-indigo-500 outline-none bg-white"
                     >
-                       <option value="staff">Staff (Standard)</option>
-                       <option value="co_manager">Co-Manager (Supervisor)</option>
+                       <option value="admin">Admin (Standard)</option>
+                       <option value="co_manager">Co-Manager (Full Access)</option>
                        {/* Hanya Manager yang bisa membuat/mengubah role Manager */}
                        {auth.user.role === 'manager' && (
-                         <option value="manager">Manager (Admin)</option>
+                         <option value="manager">Manager (Full Access)</option>
                        )}
                     </select>
                     {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}

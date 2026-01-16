@@ -28,7 +28,7 @@ class SearchController extends Controller
 
             // Search Confirmation Letters
             $lettersQuery = ConfirmationLetter::query();
-            if ($role === 'staff') {
+            if ($role === 'admin') {
                 $lettersQuery->where('user_id', $user->id);
             }
             $letters = $lettersQuery
@@ -52,7 +52,7 @@ class SearchController extends Controller
 
             // Search Event Reports
             $eventsQuery = EventReport::query();
-            if ($role === 'staff') {
+            if ($role === 'admin') {
                 $eventsQuery->where('user_id', $user->id);
             }
             $events = $eventsQuery

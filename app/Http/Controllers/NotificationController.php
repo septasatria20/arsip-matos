@@ -15,8 +15,8 @@ class NotificationController extends Controller
         $role = $user->role;
         $notifications = [];
 
-        if ($role === 'staff') {
-            // Untuk Staff: notif jika surat/laporan disetujui atau ditolak
+        if ($role === 'admin') {
+            // Untuk Admin: notif jika surat/laporan disetujui atau ditolak
             $approvedLetters = ConfirmationLetter::where('user_id', $user->id)
                 ->where('status', 'approved')
                 ->where('approved_at', '>=', Carbon::now()->subDays(7))

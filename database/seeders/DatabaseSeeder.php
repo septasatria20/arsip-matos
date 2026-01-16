@@ -25,18 +25,18 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        $staff = User::create([
+        $admin = User::create([
             'name' => 'Budi Marcom',
-            'email' => 'staff@matos.com',
+            'email' => 'admin@matos.com',
             'password' => Hash::make('password123'),
-            'role' => 'staff',
+            'role' => 'admin',
             'email_verified_at' => now(),
         ]);
 
         // 2. DATA CONFIRMATION LETTER (Surat)
-        // Surat dari Staff (Pending)
+        // Surat dari Admin (Pending)
         ConfirmationLetter::create([
-            'user_id' => $staff->id,
+            'user_id' => $admin->id,
             'event_date' => Carbon::now()->addDays(10),
             'event_name' => 'Pameran Batik Nusantara',
             'eo_name' => 'Batik Keris',
@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
 
         // Surat Ditolak (Rejected)
         ConfirmationLetter::create([
-            'user_id' => $staff->id,
+            'user_id' => $admin->id,
             'event_date' => Carbon::now()->addDays(20),
             'event_name' => 'Konser Musik Indie',
             'eo_name' => 'Komunitas Musik Malang',
@@ -68,7 +68,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         EventReport::create([
-            'user_id' => $staff->id,
+            'user_id' => $admin->id,
             'event_date' => Carbon::now()->subDays(10),
             'event_name' => 'Matos Food Festival',
             'drive_link' => 'https://drive.google.com/drive/folders/example',
@@ -78,7 +78,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         EventReport::create([
-            'user_id' => $staff->id,
+            'user_id' => $admin->id,
             'event_date' => Carbon::now()->subDays(2),
             'event_name' => 'Lomba Mewarnai Anak',
             'drive_link' => null,

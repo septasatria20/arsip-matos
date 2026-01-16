@@ -65,7 +65,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', Rules\Password::defaults()],
-            'role' => 'required|in:manager,co_manager,staff',
+            'role' => 'required|in:manager,co_manager,admin',
         ]);
 
         User::create([
@@ -98,7 +98,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
-            'role' => 'required|in:manager,co_manager,staff',
+            'role' => 'required|in:manager,co_manager,admin',
         ]);
 
         $user->fill([
