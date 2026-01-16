@@ -151,7 +151,7 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
                 >
                   <div className="hidden md:block text-right mr-3">
                       <p className="text-sm font-bold text-slate-700 leading-none">{user.name}</p>
-                      <p className="text-xs text-slate-500 mt-1 leading-none capitalize">{user.role ? user.role.replace('_', ' ') : 'User'}</p>
+                      <p className="text-xs text-slate-500 mt-1 leading-none capitalize">{user.role === 'co_manager' ? 'Co Manager' : user.role || 'User'}</p>
                   </div>
                   <img 
                      src={`https://ui-avatars.com/api/?name=${user.name}&background=4f46e5&color=fff`} 
@@ -166,7 +166,7 @@ export default function AuthenticatedLayout({ user, header, children, title }) {
                     <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
                         <div className="px-4 py-3 border-b border-slate-50 md:hidden">
                             <p className="text-sm font-bold text-slate-800">{user.name}</p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
+                            <p className="text-xs text-slate-500 capitalize">{user.role === 'co_manager' ? 'Co Manager' : user.role || 'User'}</p>
                         </div>
                         
                         <Link href={route('profile.edit')} className="flex items-center px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors">

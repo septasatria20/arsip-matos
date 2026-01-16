@@ -122,7 +122,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
               <Users className="mr-3 text-indigo-600" size={28} />
               Manajemen User
             </h1>
-            <p className="text-slate-500 text-sm sm:text-base">Kelola akses Manager, Co-Manager, dan Staff.</p>
+            <p className="text-slate-500 text-sm sm:text-base">Kelola akses Manager, Co-Manager, dan Admin.</p>
           </div>
           
           <div className="flex space-x-3 w-full md:w-auto">

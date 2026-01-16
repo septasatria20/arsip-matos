@@ -107,7 +107,7 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
 
 export default function Dashboard({ auth, statsData, chartData, recentActivities, userRole, availableYears, selectedYear }) {
   const role = userRole || auth?.user?.role || 'manager';
-  const isStaff = role === 'staff';
+  const isAdmin = role === 'admin';
   
   // Data sudah dikirim dari Controller, tidak perlu fallback dummy lagi
   const stats = statsData || {};
@@ -129,8 +129,8 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
-  // Data Kartu untuk Staff
-  const staffCards = [
+  // Data Kartu untuk Admin
+  const adminCards = [
     { 
       title: "Total Dokumen Saya", 
       value: stats.total_letters + stats.total_events, 
@@ -193,7 +193,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
     },
   ];
 
-  const cards = isStaff ? staffCards : managerCards;
+  const cards = isAdmin ? adminCards : managerCards;
 
   return (
     <AuthenticatedLayout user={auth.user} title="Dashboard">
@@ -202,10 +202,10 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
       <div className="max-w-7xl mx-auto animate-fade-in pb-10">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">
-            {isStaff ? `Halo, ${auth.user.name}!` : 'Dashboard Manager'}
+            {isAdmin ? `Halo, ${auth.user.name}!` : 'Dashboard Manager'}
           </h1>
           <p className="text-slate-500">
-            {isStaff 
+            {isAdmin 
               ? 'Pantau status pengajuan surat dan laporan kegiatan Anda di sini.' 
               : 'Ringkasan aktivitas dan persetujuan dokumen.'}
           </p>
@@ -226,7 +226,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <h3 className="font-bold text-slate-800 text-lg">
-                    {isStaff ? 'Aktivitas Upload Saya' : 'Statistik Surat Masuk'}
+                    {isAdmin ? 'Aktivitas Upload Saya' : 'Statistik Surat Masuk'}
                   </h3>
                   
                   {/* Year Filter Dropdown - Fixed width to prevent overlap */}
@@ -247,7 +247,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
              </div>
 
              {/* Grafik Additional untuk Manager */}
-             {!isStaff && (
+             {!isAdmin && (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Status Overview */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -361,8 +361,8 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                </div>
              )}
 
-             {/* QUICK ACCESS (Khusus Staff) */}
-             {isStaff && (
+             {/* QUICK ACCESS (Khusus Admin) */}
+             {isAdmin && (
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Link href="/confirmation-letter" className="bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1 group flex flex-col items-start">
                       <div className="p-3 bg-white/20 rounded-xl mb-4"><FilePlus size={24} /></div>

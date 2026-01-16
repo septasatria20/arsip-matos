@@ -68,7 +68,7 @@ class EventReportController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (auth()->user()->role === 'staff') abort(403);
+        if (auth()->user()->role === 'admin') abort(403);
         
         $validated = $request->validate([
             'status' => 'required|in:approved,rejected,pending'

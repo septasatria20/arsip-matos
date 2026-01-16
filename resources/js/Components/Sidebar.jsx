@@ -69,9 +69,7 @@ export default function Sidebar({ open, setOpen }) {
           <SidebarItem icon={Box} label="Inventaris Marcom" href="/inventaris" active={isActive('/inventaris')} />
           
           {!isAdmin && (
-            <>
-              <SidebarItem icon={PieChart} label="Budgeting" href="/budgeting" active={isActive('/budgeting')} />
-            </>
+            <SidebarItem icon={PieChart} label="Budgeting" href="/budgeting" active={isActive('/budgeting')} />
           )}
         </div>
 

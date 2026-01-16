@@ -107,7 +107,7 @@ class ConfirmationLetterController extends Controller
             ]);
 
             $data['pihak_pertama_nama'] = auth()->user()->name;
-            $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Staff');
+            $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Admin');
 
             // Render PDF tapi jangan disimpan, langsung stream ke browser
             $pdf = Pdf::loadView('pdf.confirmation_letter_template', compact('data'));
@@ -147,7 +147,7 @@ class ConfirmationLetterController extends Controller
         ]);
 
         $data['pihak_pertama_nama'] = auth()->user()->name;
-        $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Staff');
+        $data['pihak_pertama_jabatan'] = auth()->user()->role === 'manager' ? 'Manager' : (auth()->user()->role === 'co_manager' ? 'Co-Manager' : 'Admin');
         
         $fileName = 'CL_' . time() . '_' . str_replace(' ', '_', $data['pihak_kedua_instansi']) . '.pdf';
         $filePath = 'letters/' . $fileName;
@@ -172,7 +172,7 @@ class ConfirmationLetterController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (auth()->user()->role === 'staff') abort(403);
+        if (auth()->user()->role === 'admin') abort(403);
         $letter = ConfirmationLetter::findOrFail($id);
         
         $updateData = ['status' => $request->status];
@@ -201,13 +201,13 @@ class ConfirmationLetterController extends Controller
     {
         $letter = ConfirmationLetter::findOrFail($id);
 
-        // Validasi Kepemilikan (Staff tidak boleh edit punya orang lain)
-        if (auth()->user()->role === 'staff' && $letter->user_id !== auth()->id()) {
+        // Validasi Kepemilikan (Admin tidak boleh edit punya orang lain)
+        if (auth()->user()->role === 'admin' && $letter->user_id !== auth()->id()) {
             abort(403);
         }
 
         // Validasi Status (Hanya boleh edit jika Pending atau Rejected)
-        if ($letter->status === 'approved' && auth()->user()->role === 'staff') {
+        if ($letter->status === 'approved' && auth()->user()->role === 'admin') {
             return redirect()->back()->with('error', 'Surat yang sudah disetujui tidak dapat diedit.');
         }
 
