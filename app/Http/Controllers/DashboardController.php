@@ -78,14 +78,34 @@ class DashboardController extends Controller
             ];
         }
         
-        // Daftar tahun yang tersedia (dari data terakhir)
-        $availableYears = ConfirmationLetter::selectRaw('DISTINCT YEAR(created_at) as year')
+        // Daftar tahun yang tersedia (gabungan dari semua sumber data)
+        $letterYears = ConfirmationLetter::selectRaw('DISTINCT YEAR(created_at) as year')
             ->when($role === 'admin', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             })
             ->orderBy('year', 'desc')
             ->pluck('year')
             ->toArray();
+        
+        $eventYears = EventReport::selectRaw('DISTINCT YEAR(event_date) as year')
+            ->when($role === 'admin', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->orderBy('year', 'desc')
+            ->pluck('year')
+            ->toArray();
+        
+        $budgetYears = [];
+        if ($role !== 'admin') {
+            $budgetYears = Transaction::selectRaw('DISTINCT YEAR(transaction_date) as year')
+                ->orderBy('year', 'desc')
+                ->pluck('year')
+                ->toArray();
+        }
+        
+        // Gabungkan semua tahun dan hapus duplikat
+        $availableYears = array_unique(array_merge($letterYears, $eventYears, $budgetYears));
+        rsort($availableYears); // Sort descending
         
         // Pastikan tahun ini ada di list
         if (!in_array(date('Y'), $availableYears)) {

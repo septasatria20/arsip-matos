@@ -132,23 +132,77 @@ const EventBarChart = ({ data }) => {
 const BudgetingLineChart = ({ data }) => {
   if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data budgeting</div>;
 
+  const [hoveredPoint, setHoveredPoint] = React.useState(null);
+
   const maxVal = Math.max(
     ...data.map(d => Math.max(d.income || 0, d.expense || 0)),
     1000000
   );
   const scale = 180 / maxVal;
 
-  // Format Rupiah singkat
+  // Format Rupiah lengkap
+  const formatRupiah = (val) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+  };
+
+  // Format Rupiah singkat untuk Y-axis
   const formatShort = (val) => {
+    if (val >= 1000000000) return `${(val / 1000000000).toFixed(1)}B`;
     if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
     if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
     return val;
   };
 
+  // Hitung total
+  const totalIncome = data.reduce((sum, item) => sum + (item.income || 0), 0);
+  const totalExpense = data.reduce((sum, item) => sum + (item.expense || 0), 0);
+
   return (
     <div className="w-full">
-      <div className="relative h-64 w-full px-2">
-        <svg className="w-full h-full" viewBox="0 0 600 200" preserveAspectRatio="none">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+          <div className="text-xs text-green-600 font-medium mb-1">Total Pemasukan</div>
+          <div className="text-lg font-bold text-green-700">{formatRupiah(totalIncome)}</div>
+        </div>
+        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+          <div className="text-xs text-red-600 font-medium mb-1">Total Pengeluaran</div>
+          <div className="text-lg font-bold text-red-700">{formatRupiah(totalExpense)}</div>
+        </div>
+        <div className={`${totalIncome >= totalExpense ? 'bg-blue-50 border-blue-100' : 'bg-amber-50 border-amber-100'} p-4 rounded-xl border`}>
+          <div className={`text-xs ${totalIncome >= totalExpense ? 'text-blue-600' : 'text-amber-600'} font-medium mb-1`}>Selisih</div>
+          <div className={`text-lg font-bold ${totalIncome >= totalExpense ? 'text-blue-700' : 'text-amber-700'}`}>{formatRupiah(totalIncome - totalExpense)}</div>
+        </div>
+      </div>
+
+      <div className="relative h-64 w-full">
+        {/* Tooltip */}
+        {hoveredPoint && (
+          <div 
+            className="absolute bg-slate-800 text-white text-xs py-2 px-3 rounded-lg shadow-lg z-10 pointer-events-none transition-opacity duration-100"
+            style={{
+              left: `${hoveredPoint.x}px`,
+              top: `${hoveredPoint.y}px`,
+              transform: 'translate(-50%, -120%)'
+            }}
+          >
+            <div className="font-semibold mb-1">{hoveredPoint.month}</div>
+            <div className="text-green-300">Pemasukan: {formatRupiah(hoveredPoint.income)}</div>
+            <div className="text-red-300">Pengeluaran: {formatRupiah(hoveredPoint.expense)}</div>
+          </div>
+        )}
+
+        {/* Y-axis labels */}
+        <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-400 pr-2">
+          <span>{formatShort(maxVal)}</span>
+          <span>{formatShort(maxVal * 0.75)}</span>
+          <span>{formatShort(maxVal * 0.5)}</span>
+          <span>{formatShort(maxVal * 0.25)}</span>
+          <span>0</span>
+        </div>
+
+        <div className="ml-12 h-full">
+          <svg className="w-full h-56" viewBox="0 0 600 200" preserveAspectRatio="none">
           {/* Grid lines */}
           {[0, 25, 50, 75, 100].map((pct) => (
             <line
@@ -195,7 +249,21 @@ const BudgetingLineChart = ({ data }) => {
             const x = (idx / (data.length - 1)) * 600;
             const y = 200 - (item.income || 0) * scale;
             return (
-              <circle key={`income-${idx}`} cx={x} cy={y} r="4" fill="#10b981" className="hover:r-6 transition-all" />
+              <circle 
+                key={`income-${idx}`}
+                cx={x} 
+                cy={y} 
+                r="5" 
+                fill="#10b981" 
+                className="cursor-pointer hover:r-7 transition-all"
+                onMouseEnter={(e) => {
+                  const rect = e.target.closest('svg').getBoundingClientRect();
+                  const xPos = rect.left + (x / 600) * rect.width;
+                  const yPos = rect.top + (y / 200) * rect.height;
+                  setHoveredPoint({ x: xPos - rect.left + 48, y: yPos - rect.top, month: item.month, income: item.income, expense: item.expense });
+                }}
+                onMouseLeave={() => setHoveredPoint(null)}
+              />
             );
           })}
 
@@ -204,16 +272,31 @@ const BudgetingLineChart = ({ data }) => {
             const x = (idx / (data.length - 1)) * 600;
             const y = 200 - (item.expense || 0) * scale;
             return (
-              <circle key={`expense-${idx}`} cx={x} cy={y} r="4" fill="#ef4444" className="hover:r-6 transition-all" />
+              <circle 
+                key={`expense-${idx}`}
+                cx={x} 
+                cy={y} 
+                r="5" 
+                fill="#ef4444" 
+                className="cursor-pointer hover:r-7 transition-all"
+                onMouseEnter={(e) => {
+                  const rect = e.target.closest('svg').getBoundingClientRect();
+                  const xPos = rect.left + (x / 600) * rect.width;
+                  const yPos = rect.top + (y / 200) * rect.height;
+                  setHoveredPoint({ x: xPos - rect.left + 48, y: yPos - rect.top, month: item.month, income: item.income, expense: item.expense });
+                }}
+                onMouseLeave={() => setHoveredPoint(null)}
+              />
             );
           })}
         </svg>
 
         {/* Month labels */}
-        <div className="flex justify-between mt-4">
+        <div className="flex justify-between mt-2">
           {data.map((item, idx) => (
             <span key={idx} className="text-xs text-slate-600 font-medium">{item.month}</span>
           ))}
+        </div>
         </div>
       </div>
 
@@ -221,11 +304,11 @@ const BudgetingLineChart = ({ data }) => {
       <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-          <span className="text-sm text-slate-600">Pemasukan</span>
+          <span className="text-sm text-slate-600 font-medium">Pemasukan</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-          <span className="text-sm text-slate-600">Pengeluaran</span>
+          <span className="text-sm text-slate-600 font-medium">Pengeluaran</span>
         </div>
       </div>
     </div>
