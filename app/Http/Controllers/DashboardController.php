@@ -199,4 +199,80 @@ class DashboardController extends Controller
             'budgetingChartData' => $budgetingChartData,
         ]);
     }
+
+    // API endpoint untuk fetch events chart berdasarkan tahun
+    public function eventsChart(Request $request)
+    {
+        $user = auth()->user();
+        $role = $user->role;
+        $year = $request->input('year', date('Y'));
+
+        $eventsChartData = EventReport::select(
+                DB::raw('MONTH(event_date) as month'),
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereYear('event_date', $year)
+            ->when($role === 'admin', function($q) use ($user) {
+                return $q->where('user_id', $user->id);
+            })
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $formattedEventsChart = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthData = $eventsChartData->firstWhere('month', $i);
+            $formattedEventsChart[] = [
+                'month' => date("M", mktime(0, 0, 0, $i, 1)),
+                'total' => $monthData ? (int)$monthData->total : 0,
+            ];
+        }
+
+        return response()->json($formattedEventsChart);
+    }
+
+    // API endpoint untuk fetch budgeting chart berdasarkan tahun
+    public function budgetingChart(Request $request)
+    {
+        $user = auth()->user();
+        $role = $user->role;
+        $year = $request->input('year', date('Y'));
+
+        if ($role === 'admin') {
+            return response()->json([]);
+        }
+
+        $incomeChart = Transaction::select(
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('SUM(nominal) as total')
+            )
+            ->where('type', 'income')
+            ->whereYear('transaction_date', $year)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $expenseChart = Transaction::select(
+                DB::raw('MONTH(transaction_date) as month'),
+                DB::raw('SUM(nominal) as total')
+            )
+            ->where('type', 'expense')
+            ->whereYear('transaction_date', $year)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $budgetingChartData = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $incomeData = $incomeChart->firstWhere('month', $i);
+            $expenseData = $expenseChart->firstWhere('month', $i);
+            $budgetingChartData[] = [
+                'month' => date("M", mktime(0, 0, 0, $i, 1)),
+                'income' => $incomeData ? (int)$incomeData->total : 0,
+                'expense' => $expenseData ? (int)$expenseData->total : 0,
+            ];
+        }
+
+        return response()->json($budgetingChartData);
+    }
 }

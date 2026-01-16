@@ -38,6 +38,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(['auth', 'verified'])
         ->name('dashboard');
     
+    // 1a. Dashboard Chart APIs
+    Route::get('/dashboard/events-chart', [DashboardController::class, 'eventsChart'])->name('dashboard.events-chart');
+    Route::get('/dashboard/budgeting-chart', [DashboardController::class, 'budgetingChart'])->name('dashboard.budgeting-chart');
+    
     // 1b. Notifications
     Route::get('/api/notifications', [NotificationController::class, 'index'])->name('notifications');
 

@@ -257,15 +257,49 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
   const recent = recentActivities || [];
   const years = availableYears || [new Date().getFullYear()];
   const currentYear = selectedYear || new Date().getFullYear();
-  const eventsChart = eventsChartData || [];
-  const budgetingChart = budgetingChartData || [];
+  const [eventYear, setEventYear] = React.useState(currentYear);
+  const [budgetYear, setBudgetYear] = React.useState(currentYear);
+  const [loadingEvents, setLoadingEvents] = React.useState(false);
+  const [loadingBudget, setLoadingBudget] = React.useState(false);
+  const [eventsChart, setEventsChart] = React.useState(eventsChartData || []);
+  const [budgetingChart, setBudgetingChart] = React.useState(budgetingChartData || []);
 
   // Debug: Log data untuk melihat apa yang diterima
   console.log('Dashboard Data:', { stats, chart, recent, role, years, currentYear, eventsChart, budgetingChart });
   
-  // Handle year change
+  // Handle year change for letter stats
   const handleYearChange = (year) => {
     window.location.href = `?year=${year}`;
+  };
+
+  // Handle year change for events chart
+  const handleEventYearChange = async (year) => {
+    setEventYear(year);
+    setLoadingEvents(true);
+    try {
+      const response = await fetch(`/dashboard/events-chart?year=${year}`);
+      const data = await response.json();
+      setEventsChart(data);
+    } catch (error) {
+      console.error('Error fetching events chart:', error);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
+  // Handle year change for budgeting chart
+  const handleBudgetYearChange = async (year) => {
+    setBudgetYear(year);
+    setLoadingBudget(true);
+    try {
+      const response = await fetch(`/dashboard/budgeting-chart?year=${year}`);
+      const data = await response.json();
+      setBudgetingChart(data);
+    } catch (error) {
+      console.error('Error fetching budgeting chart:', error);
+    } finally {
+      setLoadingBudget(false);
+    }
   };
 
   // Helper format rupiah
@@ -364,7 +398,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Kolom Kiri: Grafik & Quick Access */}
+          {/* Kolom Kiri: Grafik */}
           <div className="lg:col-span-2 space-y-8">
              {/* Grafik Surat Masuk */}
              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -391,24 +425,65 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
              </div>
 
              {/* Grafik Event per Bulan */}
-             {eventsChartData && eventsChartData.length > 0 && (
+             {eventsChart && eventsChart.length > 0 && (
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                 <h3 className="font-bold text-slate-800 mb-6">Jumlah Event per Bulan ({currentYear})</h3>
-                 <EventBarChart data={eventsChartData} />
+                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                   <h3 className="font-bold text-slate-800 text-lg">Jumlah Event per Bulan</h3>
+                   <div className="flex items-center gap-2">
+                     <Calendar size={16} className="text-slate-400 flex-shrink-0" />
+                     <select 
+                       value={eventYear}
+                       onChange={(e) => handleEventYearChange(e.target.value)}
+                       disabled={loadingEvents}
+                       className="text-sm border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors min-w-[100px] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat disabled:opacity-50"
+                     >
+                       {years.map(year => (
+                         <option key={year} value={year}>{year}</option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+                 {loadingEvents ? (
+                   <div className="h-64 flex items-center justify-center text-slate-400">Loading...</div>
+                 ) : (
+                   <EventBarChart data={eventsChart} />
+                 )}
                </div>
              )}
 
              {/* Grafik Budgeting untuk Manager/Co-Manager */}
-             {!isAdmin && budgetingChartData && budgetingChartData.length > 0 && (
+             {!isAdmin && budgetingChart && budgetingChart.length > 0 && (
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                 <h3 className="font-bold text-slate-800 mb-6">Pemasukan & Pengeluaran per Bulan ({currentYear})</h3>
-                 <BudgetingLineChart data={budgetingChartData} />
+                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                   <h3 className="font-bold text-slate-800 text-lg">Pemasukan & Pengeluaran per Bulan</h3>
+                   <div className="flex items-center gap-2">
+                     <Calendar size={16} className="text-slate-400 flex-shrink-0" />
+                     <select 
+                       value={budgetYear}
+                       onChange={(e) => handleBudgetYearChange(e.target.value)}
+                       disabled={loadingBudget}
+                       className="text-sm border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors min-w-[100px] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat disabled:opacity-50"
+                     >
+                       {years.map(year => (
+                         <option key={year} value={year}>{year}</option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+                 {loadingBudget ? (
+                   <div className="h-64 flex items-center justify-center text-slate-400">Loading...</div>
+                 ) : (
+                   <BudgetingLineChart data={budgetingChart} />
+                 )}
                </div>
              )}
+          </div>
 
-             {/* Grafik Additional untuk Manager */}
+          {/* Kolom Kanan: Cards */}
+          <div className="space-y-6">
+             {/* Cards untuk Manager */}
              {!isAdmin && (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <>
                   {/* Status Overview */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-800 mb-4">Status Approval</h3>
@@ -518,31 +593,37 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                       </div>
                     </div>
                   </div>
-               </div>
+               </>
              )}
 
              {/* QUICK ACCESS (Khusus Admin) */}
              {isAdmin && (
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Link href="/confirmation-letter" className="bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1 group flex flex-col items-start">
-                      <div className="p-3 bg-white/20 rounded-xl mb-4"><FilePlus size={24} /></div>
-                      <h4 className="font-bold text-lg">Buat Surat Baru</h4>
-                      <p className="text-indigo-100 text-sm mt-1">Generator otomatis atau upload manual.</p>
-                  </Link>
-                  <Link href="/laporan-event" className="bg-white border border-slate-200 text-slate-700 p-6 rounded-2xl hover:shadow-md transition-all hover:-translate-y-1 group flex flex-col items-start">
-                      <div className="p-3 bg-green-50 text-green-600 rounded-xl mb-4"><Activity size={24} /></div>
-                      <h4 className="font-bold text-lg">Lapor Kegiatan</h4>
-                      <p className="text-slate-500 text-sm mt-1">Upload dokumentasi event selesai.</p>
-                  </Link>
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-4">Quick Access</h3>
+                  <div className="space-y-3">
+                    <Link href="/confirmation-letter" className="flex items-center p-4 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors group">
+                        <div className="p-2 bg-indigo-600 text-white rounded-lg mr-3"><FilePlus size={20} /></div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">Buat Surat Baru</h4>
+                          <p className="text-slate-500 text-xs">Generator atau upload manual</p>
+                        </div>
+                    </Link>
+                    <Link href="/laporan-event" className="flex items-center p-4 bg-green-50 hover:bg-green-100 rounded-xl transition-colors group">
+                        <div className="p-2 bg-green-600 text-white rounded-lg mr-3"><Activity size={20} /></div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">Lapor Kegiatan</h4>
+                          <p className="text-slate-500 text-xs">Upload dokumentasi event</p>
+                        </div>
+                    </Link>
+                  </div>
                </div>
              )}
-          </div>
 
-          {/* Kolom Kanan: Status Terkini */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-slate-800 text-lg">Status Terkini</h3>
-            </div>
+             {/* Status Terkini - Pindah ke kolom kanan */}
+             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="font-bold text-slate-800 text-lg">Status Terkini</h3>
+               </div>
             
             <div className="space-y-4">
               {recent.length > 0 ? (
@@ -585,6 +666,7 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
                 </div>
               )}
             </div>
+             </div>
           </div>
         </div>
       </div>
