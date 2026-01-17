@@ -14,5 +14,6 @@ class Budget extends Model
         'year',
         'month',
         'amount',
+        'type', // monthly, income, expense
     ];
 }

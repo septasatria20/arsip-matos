@@ -11,9 +11,21 @@ export default function InventarisMarcom({ auth, items, filters }) {
   const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null); // State untuk Fullscreen Image
   const [showFilter, setShowFilter] = useState(false);
   const [filterCondition, setFilterCondition] = useState(filters.condition || '');
   const { flash } = usePage().props;
+
+  // Close fullscreen on ESC key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        setFullscreenImage(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
 
   // Toast notification
   useEffect(() => {
@@ -174,11 +186,18 @@ export default function InventarisMarcom({ auth, items, filters }) {
                 {/* Header Image */}
                 <div className="relative max-h-[50vh] bg-slate-100 flex items-center justify-center group shrink-0">
                     {selectedItem.image_path ? (
-                        <img 
-                          src={`/storage/${selectedItem.image_path}`} 
-                          className="max-w-full max-h-[50vh] object-contain" 
-                          alt={selectedItem.name}
-                        />
+                        <div className="relative cursor-pointer w-full" onClick={(e) => { e.stopPropagation(); setFullscreenImage(`/storage/${selectedItem.image_path}`); }}>
+                            <img 
+                              src={`/storage/${selectedItem.image_path}`} 
+                              className="max-w-full max-h-[50vh] object-contain transition-transform hover:scale-105" 
+                              alt={selectedItem.name}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+                                <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-slate-800">
+                                    <ImageIcon size={16} /> Klik untuk Full Preview
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <div className="h-64 flex items-center justify-center">
                             <ImageIcon size={48} className="text-slate-300" />
@@ -608,6 +627,30 @@ export default function InventarisMarcom({ auth, items, filters }) {
                   <button type="submit" disabled={processing} className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600">Simpan</button>
                </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE MODAL */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <button 
+            onClick={() => setFullscreenImage(null)}
+            className="absolute top-4 right-4 p-3 bg-white/10 backdrop-blur-md text-white rounded-full hover:bg-white/20 transition z-10"
+          >
+            <X size={24} />
+          </button>
+          <img 
+            src={fullscreenImage} 
+            alt="Full Preview"
+            className="max-w-full max-h-full object-contain cursor-zoom-out"
+            onClick={() => setFullscreenImage(null)}
+          />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm">
+            Klik gambar atau ESC untuk menutup
           </div>
         </div>
       )}

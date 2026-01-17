@@ -32,6 +32,8 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   
   const [activeTab, setActiveTab] = useState('overview'); 
   const [viewMode, setViewMode] = useState('list'); // list, create, set-budget, upload-old
+  const [budgetType, setBudgetType] = useState('monthly'); // monthly, income, expense
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [viewDetail, setViewDetail] = useState(null);
   const [exportType, setExportType] = useState('all');
   const [filterMonth, setFilterMonth] = useState('');
@@ -105,12 +107,21 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   // Inisialisasi data budget saat masuk mode set-budget
   useEffect(() => {
     if (viewMode === 'set-budget') {
+        let budgetSource;
+        if (budgetType === 'monthly') {
+            budgetSource = monthlyOverview;
+        } else if (budgetType === 'income') {
+            budgetSource = incomeOverview;
+        } else {
+            budgetSource = expenseOverview;
+        }
         setBudgetData({
             year: currentYear,
-            budgets: monthlyOverview.map(m => ({ month: m.month_num, amount: m.budget }))
+            type: budgetType,
+            budgets: budgetSource.map(m => ({ month: m.month_num, amount: m.budget || 0 }))
         });
     }
-  }, [viewMode, monthlyOverview]);
+  }, [viewMode, budgetType, monthlyOverview, incomeOverview, expenseOverview]);
 
   const handleBudgetChange = (index, value) => {
       const newBudgets = [...budgetData.budgets];
@@ -387,7 +398,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                
                {activeTab === 'overview' ? (
                   <button 
-                    onClick={() => setViewMode('set-budget')}
+                    onClick={() => setShowBudgetModal(true)}
                     className="items-center justify-center px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 shadow-lg transition-colors flex"
                   >
                     <Edit3 size={18} className="mr-2" /> Atur Budget
@@ -708,13 +719,24 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
       {/* --- SET BUDGET MODE --- */}
       {viewMode === 'set-budget' && (
         <div className="max-w-3xl mx-auto animate-fade-in pb-10">
-            <button onClick={() => setViewMode('list')} className="flex items-center text-slate-500 hover:text-purple-600 mb-6 transition-colors">
+            <button onClick={() => { setViewMode('list'); setShowBudgetModal(false); }} className="flex items-center text-slate-500 hover:text-purple-600 mb-6 transition-colors">
                 <ChevronLeft size={20} className="mr-1" /> Kembali ke Overview
             </button>
 
             <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-800 text-white">
-                    <h2 className="text-xl font-bold flex items-center"><Edit3 className="mr-3" size={24} /> Atur Budget Bulanan ({currentYear})</h2>
+                <div className={`p-6 border-b border-slate-100 text-white ${
+                    budgetType === 'monthly' ? 'bg-slate-800' : 
+                    budgetType === 'income' ? 'bg-green-600' : 
+                    'bg-red-600'
+                }`}>
+                    <h2 className="text-xl font-bold flex items-center">
+                        <Edit3 className="mr-3" size={24} /> 
+                        Atur Budget {
+                            budgetType === 'monthly' ? 'Bulanan' : 
+                            budgetType === 'income' ? 'Pemasukan' : 
+                            'Pengeluaran'
+                        } ({currentYear})
+                    </h2>
                 </div>
                 <form onSubmit={submitBudget} className="p-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -736,7 +758,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                         ))}
                     </div>
                     <div className="flex justify-end gap-3 pt-6 mt-4 border-t border-slate-100">
-                        <button type="button" onClick={() => setViewMode('list')} className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50">Batal</button>
+                        <button type="button" onClick={() => { setViewMode('list'); setShowBudgetModal(false); }} className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50">Batal</button>
                         <button type="submit" disabled={budgetProcessing} className="px-6 py-3 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-700 shadow-lg flex items-center">
                             <Save size={18} className="mr-2" /> Simpan Budget
                         </button>
@@ -930,6 +952,84 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
       )}      
       {/* Detail Modal */}
       {viewDetail && <DetailModal item={viewDetail} onClose={() => setViewDetail(null)} />}
+      
+      {/* Budget Type Selection Modal */}
+      {showBudgetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowBudgetModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Pilih Jenis Budget</h3>
+              <p className="text-sm text-slate-600">Pilih kategori budget yang ingin Anda atur</p>
+            </div>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setBudgetType('monthly');
+                  setViewMode('set-budget');
+                  setShowBudgetModal(false);
+                }}
+                className="w-full p-4 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-800 rounded-xl text-left transition-all group"
+              >
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                    <Calculator size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800 mb-1">Budget Bulanan</h4>
+                    <p className="text-xs text-slate-500">Atur target budget per bulan</p>
+                  </div>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setBudgetType('income');
+                  setViewMode('set-budget');
+                  setShowBudgetModal(false);
+                }}
+                className="w-full p-4 bg-green-50 hover:bg-green-100 border-2 border-green-200 hover:border-green-600 rounded-xl text-left transition-all group"
+              >
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                    <TrendingUp size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800 mb-1">Budget Pemasukan</h4>
+                    <p className="text-xs text-slate-500">Atur target pemasukan per bulan</p>
+                  </div>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setBudgetType('expense');
+                  setViewMode('set-budget');
+                  setShowBudgetModal(false);
+                }}
+                className="w-full p-4 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-600 rounded-xl text-left transition-all group"
+              >
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                    <TrendingDown size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800 mb-1">Budget Pengeluaran</h4>
+                    <p className="text-xs text-slate-500">Atur batas pengeluaran per bulan</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowBudgetModal(false)}
+              className="w-full mt-4 px-4 py-3 border border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-50 transition"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Confirm Dialog */}
       <ConfirmDialog

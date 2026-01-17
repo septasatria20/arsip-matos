@@ -21,11 +21,24 @@ class BudgetController extends Controller
         $selectedMonth = $request->input('month');
         $selectedStatus = $request->input('status');
 
-        // 2. Ambil Data Budget per Bulan
-        $budgets = Budget::where('year', $selectedYear)
+        // 2. Ambil Data Budget per Bulan untuk masing-masing type
+        $monthlyBudgets = Budget::where('year', $selectedYear)
+            ->where('type', 'monthly')
             ->orderBy('month')
             ->get()
-            ->keyBy('month'); // Biar mudah diakses array-nya
+            ->keyBy('month');
+            
+        $incomeBudgets = Budget::where('year', $selectedYear)
+            ->where('type', 'income')
+            ->orderBy('month')
+            ->get()
+            ->keyBy('month');
+            
+        $expenseBudgets = Budget::where('year', $selectedYear)
+            ->where('type', 'expense')
+            ->orderBy('month')
+            ->get()
+            ->keyBy('month');
 
         // 3. Ambil Total Pengeluaran per Bulan (Grouping)
         $expenses = Transaction::whereYear('transaction_date', $selectedYear)
@@ -58,7 +71,7 @@ class BudgetController extends Controller
         ];
 
         foreach ($months as $num => $name) {
-            $budgetAmount = $budgets[$num]->amount ?? 0;
+            $budgetAmount = $monthlyBudgets[$num]->amount ?? 0;
             $incomeAmount = $incomes[$num]->total_income ?? 0;
             $expenseAmount = $expenses[$num]->total_expense ?? 0;
             
@@ -101,7 +114,7 @@ class BudgetController extends Controller
         // 7. Buat Overview Pemasukan Terpisah
         $incomeOverview = [];
         foreach ($months as $num => $name) {
-            $budgetIncome = $budgets[$num]->income_target ?? 0; // Jika ada kolom income_target di budget
+            $budgetIncome = $incomeBudgets[$num]->amount ?? 0;
             $actualIncome = $incomes[$num]->total_income ?? 0;
             
             $incomeOverview[] = [
@@ -109,14 +122,14 @@ class BudgetController extends Controller
                 'month' => $name,
                 'budget' => $budgetIncome,
                 'actual' => $actualIncome,
-                'diff' => $actualIncome - $budgetIncome
+                'diff' => $budgetIncome - $actualIncome // Budget - Actual
             ];
         }
 
         // 8. Buat Overview Pengeluaran Terpisah
         $expenseOverview = [];
         foreach ($months as $num => $name) {
-            $budgetExpense = $budgets[$num]->amount ?? 0; // amount adalah budget pengeluaran
+            $budgetExpense = $expenseBudgets[$num]->amount ?? 0;
             $actualExpense = $expenses[$num]->total_expense ?? 0;
             
             $expenseOverview[] = [
@@ -124,7 +137,7 @@ class BudgetController extends Controller
                 'month' => $name,
                 'budget' => $budgetExpense,
                 'actual' => $actualExpense,
-                'diff' => $budgetExpense - $actualExpense
+                'diff' => $budgetExpense - $actualExpense // Budget - Actual
             ];
         }
 
@@ -227,11 +240,12 @@ class BudgetController extends Controller
     public function storeBudget(Request $request)
     {
         $year = $request->input('year');
+        $type = $request->input('type', 'monthly'); // monthly, income, expense
         $budgets = $request->input('budgets'); // Array [{month: 1, amount: 1000}, ...]
 
         foreach ($budgets as $item) {
             Budget::updateOrCreate(
-                ['year' => $year, 'month' => $item['month']],
+                ['year' => $year, 'month' => $item['month'], 'type' => $type],
                 ['amount' => $item['amount']]
             );
         }
