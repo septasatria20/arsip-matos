@@ -47,7 +47,7 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        // Tidak langsung login, redirect ke halaman sukses registrasi
-        return redirect()->route('login')->with('success', 'Registrasi berhasil! Silakan tunggu approval dari Manager untuk dapat login.');
+        // Tidak redirect, biarkan frontend handle success state
+        return back();
     }
 }
