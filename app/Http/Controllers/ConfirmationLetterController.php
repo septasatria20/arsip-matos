@@ -17,10 +17,8 @@ class ConfirmationLetterController extends Controller
     {
         $query = ConfirmationLetter::with('user');
 
-        // FILTER ROLE: Jika Admin, hanya lihat punya sendiri
-        if (auth()->user()->role === 'admin') {
-            $query->where('user_id', auth()->id());
-        }
+        // Admin bisa lihat semua data (tidak filter by user)
+        // Manager dan Co-Manager juga lihat semua data
 
         if ($request->filled('category') && $request->category !== 'Semua Kategori') {
             $query->where('category', $request->category);

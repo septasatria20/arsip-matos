@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
-  Shield, Mail, X, Save, Check, Eye, EyeOff, AlertCircle
+  Shield, Mail, X, Save, Check, Eye, EyeOff, AlertCircle, CheckCircle, Clock
 } from 'lucide-react';
 
 export default function UserIndex({ auth, users, filters, flash }) {
@@ -92,6 +92,13 @@ export default function UserIndex({ auth, users, filters, flash }) {
     }
   };
 
+  // Handle Approve
+  const handleApprove = (id) => {
+    if (confirm('Approve user ini untuk dapat login?')) {
+      router.patch(route('users.approve', id));
+    }
+  };
+
   return (
     <AuthenticatedLayout user={auth.user} title="Manajemen User">
       <Head title="Manajemen User" />
@@ -160,7 +167,17 @@ export default function UserIndex({ auth, users, filters, flash }) {
                         {user.name.charAt(0)}
                      </div>
                      <div>
-                        <h3 className="font-bold text-slate-800">{user.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-800">{user.name}</h3>
+                          {!user.approved && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1">
+                              <Clock size={12} /> Menunggu Approval
+                            </span>
+                          )}
+                          {user.approved && (
+                            <CheckCircle size={14} className="text-green-500" />
+                          )}
+                        </div>
                         <span className={`text-xs px-2 py-0.5 rounded-full border ${
                            user.role === 'manager' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                            user.role === 'co_manager' ? 'bg-blue-50 text-blue-600 border-blue-100' :
@@ -171,18 +188,25 @@ export default function UserIndex({ auth, users, filters, flash }) {
                      </div>
                   </div>
                   
-                  {canModify && (
                   <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors">
-                        <Edit size={16} />
-                     </button>
-                     {auth.user.id !== user.id && (
-                       <button onClick={() => handleDelete(user.id)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
-                          <Trash2 size={16} />
+                     {!user.approved && canModify && (
+                       <button onClick={() => handleApprove(user.id)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve User">
+                          <CheckCircle size={16} />
                        </button>
                      )}
+                     {canModify && (
+                       <>
+                         <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors">
+                            <Edit size={16} />
+                         </button>
+                         {auth.user.id !== user.id && (
+                           <button onClick={() => handleDelete(user.id)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
+                              <Trash2 size={16} />
+                           </button>
+                         )}
+                       </>
+                     )}
                   </div>
-                  )}
                </div>
                
                <div className="space-y-2">

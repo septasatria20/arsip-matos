@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Route Manajemen User (Hanya untuk Manager dan Co-Manager)
     Route::middleware(['role:manager,co_manager'])->group(function () {
         Route::resource('users', UserController::class);
+        Route::patch('/users/{id}/approve', [UserController::class, 'approve'])->name('users.approve');
     });
 
 });

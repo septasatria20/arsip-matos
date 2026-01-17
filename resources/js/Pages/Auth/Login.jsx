@@ -25,15 +25,18 @@ export default function Login({ status, canResetPassword }) {
         };
     }, []);
 
-    // Toast notifications untuk error
+    // Toast notifications untuk error dan success
     useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success, { duration: 6000 });
+        }
         if (errors.email) {
             toast.error(errors.email);
         }
         if (errors.password) {
             toast.error(errors.password);
         }
-    }, [errors]);
+    }, [errors, flash]);
 
     const submit = (e) => {
         e.preventDefault();

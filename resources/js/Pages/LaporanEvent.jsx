@@ -339,6 +339,7 @@ export default function LaporanEvent({ auth, reports, filters }) {
                         </div>
                         
                         <div className="flex gap-1 flex-shrink-0">
+                            {/* Tombol Approval - Hanya Manager/Co-Manager */}
                             {isManager && item.status === 'pending' && (
                                 <>
                                 <button onClick={() => updateStatus(item.id, 'approved')} className="p-1 bg-green-50 text-green-600 rounded hover:bg-green-100 transition border border-green-200" title="Acc">
@@ -349,9 +350,12 @@ export default function LaporanEvent({ auth, reports, filters }) {
                                 </button>
                                 </>
                             )}
-                            <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition" title="Hapus">
-                                <Trash2 size={14}/>
-                            </button>
+                            {/* Tombol Delete - Manager/Co-Manager bisa hapus semua, Admin hanya milik sendiri */}
+                            {(isManager || item.user_id === auth.user.id) && (
+                              <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition" title="Hapus">
+                                  <Trash2 size={14}/>
+                              </button>
+                            )}
                         </div>
                     </div>
                  </div>

@@ -32,6 +32,14 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        // Cek apakah user sudah di-approve
+        if (!auth()->user()->approved) {
+            Auth::guard('web')->logout();
+            return back()->withErrors([
+                'email' => 'Akun Anda belum disetujui oleh Manager. Silakan tunggu approval terlebih dahulu.',
+            ]);
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(RouteServiceProvider::HOME);

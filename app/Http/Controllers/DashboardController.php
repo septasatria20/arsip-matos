@@ -24,11 +24,8 @@ class DashboardController extends Controller
         $lettersQuery = ConfirmationLetter::query();
         $eventsQuery = EventReport::query();
         
-        // Jika Admin, hanya tampilkan data miliknya
-        if ($role === 'admin') {
-            $lettersQuery->where('user_id', $user->id);
-            $eventsQuery->where('user_id', $user->id);
-        }
+        // Admin bisa lihat semua data (tidak filter by user_id)
+        // Manager & Co-Manager juga lihat semua data
 
         // === DATA STATISTIK REAL ===
         $statsData = [

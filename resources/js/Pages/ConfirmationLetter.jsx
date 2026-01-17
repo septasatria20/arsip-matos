@@ -534,7 +534,7 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                       </td>
 
                       <td className="p-4 text-right flex justify-end space-x-2">
-                        {/* Tombol Approval */}
+                        {/* Tombol Approval - Hanya Manager/Co-Manager */}
                         {isManager && item.status === 'pending' && (
                             <>
                                 <button onClick={() => updateStatus(item.id, 'approved')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle size={18}/></button>
@@ -542,14 +542,17 @@ export default function ConfirmationLetter({ auth, letters, filters }) {
                             </>
                         )}
                         
-                        {/* Tombol Edit */}
+                        {/* Tombol Edit - Hanya untuk milik sendiri yang pending/rejected */}
                         {(item.status === 'pending' || item.status === 'rejected') && item.user_id === auth.user.id && (
                             <button onClick={() => openEdit(item)} className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg" title="Edit / Revisi">
                                 <Edit size={18} />
                             </button>
                         )}
                         
-                        <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18}/></button>
+                        {/* Tombol Delete - Manager/Co-Manager bisa hapus semua, Admin hanya milik sendiri */}
+                        {(isManager || item.user_id === auth.user.id) && (
+                          <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18}/></button>
+                        )}
                       </td>
                     </tr>
                   ))}

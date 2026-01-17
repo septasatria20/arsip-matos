@@ -73,6 +73,7 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
+            'approved' => true, // User yang dibuat oleh manager langsung approved
         ]);
 
         return redirect()->back()->with('message', 'User berhasil ditambahkan.');
@@ -140,5 +141,23 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->back()->with('message', 'User berhasil dihapus.');
+    }
+
+    /**
+     * Approve user yang baru registrasi
+     */
+    public function approve($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // Mencegah co-manager approve manager
+        if (auth()->user()->role === 'co_manager' && $user->role === 'manager') {
+            return redirect()->back()->with('error', 'Co-Manager tidak bisa meng-approve Manager.');
+        }
+
+        $user->approved = true;
+        $user->save();
+
+        return redirect()->back()->with('message', 'User berhasil di-approve dan sekarang bisa login.');
     }
 }

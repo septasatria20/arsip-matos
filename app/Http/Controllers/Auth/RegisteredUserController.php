@@ -41,12 +41,13 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => 'admin',
+            'approved' => false, // User baru harus menunggu approval
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(RouteServiceProvider::HOME);
+        // Tidak langsung login, redirect ke halaman sukses registrasi
+        return redirect()->route('login')->with('success', 'Registrasi berhasil! Silakan tunggu approval dari Manager untuk dapat login.');
     }
 }
