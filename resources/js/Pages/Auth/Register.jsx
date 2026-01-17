@@ -5,13 +5,12 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Eye, EyeOff, User, Mail, Lock, UserPlus, CheckCircle, Info } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, UserPlus } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Register() {
     const { flash } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
-    const [registrationSuccess, setRegistrationSuccess] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
@@ -35,80 +34,8 @@ export default function Register() {
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('register'), {
-            onSuccess: () => {
-                setRegistrationSuccess(true);
-            }
-        });
+        post(route('register'));
     };
-
-    // Jika registrasi berhasil, tampilkan halaman sukses
-    if (registrationSuccess) {
-        return (
-            <GuestLayout>
-                <Head title="Pendaftaran Berhasil" />
-                
-                <div className="text-center space-y-6 animate-fade-in">
-                    {/* Icon Success */}
-                    <div className="flex justify-center">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                            <CheckCircle size={48} className="text-green-600" />
-                        </div>
-                    </div>
-
-                    {/* Judul */}
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                            Pendaftaran Berhasil!
-                        </h2>
-                        <p className="text-slate-600">
-                            Akun Anda telah dibuat dengan email: <strong>{data.email}</strong>
-                        </p>
-                    </div>
-
-                    {/* Info Box */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-left">
-                        <div className="flex items-start">
-                            <Info size={24} className="text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-3">
-                                <h3 className="font-bold text-blue-900 text-lg">Proses Verifikasi Diperlukan</h3>
-                                <p className="text-blue-800 text-sm leading-relaxed">
-                                    Untuk keamanan sistem, akun Anda perlu diverifikasi terlebih dahulu oleh <strong>Manager</strong> atau <strong>Co-Manager</strong> sebelum dapat digunakan untuk login.
-                                </p>
-                                <div className="bg-white rounded-lg p-4 border border-blue-100">
-                                    <p className="text-sm text-slate-700 mb-2 font-semibold">Langkah selanjutnya:</p>
-                                    <ol className="text-sm text-slate-600 space-y-2 list-decimal list-inside">
-                                        <li>Hubungi <strong>Manager</strong> atau <strong>Co-Manager</strong> Anda</li>
-                                        <li>Informasikan bahwa Anda telah mendaftar dengan email: <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">{data.email}</span></li>
-                                        <li>Tunggu hingga akun Anda di-approve</li>
-                                        <li>Setelah approved, Anda akan menerima konfirmasi dan dapat login</li>
-                                    </ol>
-                                </div>
-                                <p className="text-xs text-blue-700 italic">
-                                    💡 Proses approval biasanya memakan waktu beberapa menit hingga beberapa jam tergantung ketersediaan Manager.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Button ke Login */}
-                    <div className="pt-4">
-                        <Link
-                            href={route('login')}
-                            className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all"
-                        >
-                            Kembali ke Halaman Login
-                        </Link>
-                    </div>
-
-                    {/* Footer note */}
-                    <p className="text-xs text-slate-400 pt-4">
-                        Jika ada kendala, silakan hubungi admin sistem.
-                    </p>
-                </div>
-            </GuestLayout>
-        );
-    }
 
     return (
         <GuestLayout>

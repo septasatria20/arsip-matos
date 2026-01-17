@@ -3,8 +3,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
-  Shield, Mail, X, Save, Check, Eye, EyeOff, AlertCircle, CheckCircle, Clock
+  Shield, Mail, X, Save, Check, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
+import ConfirmDialog from '@/Components/ConfirmDialog';
 
 export default function UserIndex({ auth, users, filters, flash }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function UserIndex({ auth, users, filters, flash }) {
   const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
   const [flashMessage, setFlashMessage] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: '', userId: null });
 
   // Cek flash messages dari Laravel
   React.useEffect(() => {
@@ -87,16 +89,15 @@ export default function UserIndex({ auth, users, filters, flash }) {
 
   // Handle Delete
   const handleDelete = (id) => {
-    if (confirm('Apakah Anda yakin ingin menghapus user ini?')) {
-      router.delete(route('users.destroy', id));
-    }
+    setConfirmDialog({ isOpen: true, type: 'delete', userId: id });
   };
 
-  // Handle Approve
-  const handleApprove = (id) => {
-    if (confirm('Approve user ini untuk dapat login?')) {
-      router.patch(route('users.approve', id));
+  // Confirm Dialog Actions
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'delete') {
+      router.delete(route('users.destroy', confirmDialog.userId));
     }
+    setConfirmDialog({ isOpen: false, type: '', userId: null });
   };
 
   return (
@@ -169,14 +170,6 @@ export default function UserIndex({ auth, users, filters, flash }) {
                      <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-slate-800">{user.name}</h3>
-                          {!user.approved && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1">
-                              <Clock size={12} /> Menunggu Approval
-                            </span>
-                          )}
-                          {user.approved && (
-                            <CheckCircle size={14} className="text-green-500" />
-                          )}
                         </div>
                         <span className={`text-xs px-2 py-0.5 rounded-full border ${
                            user.role === 'manager' ? 'bg-purple-50 text-purple-600 border-purple-100' :
@@ -189,11 +182,6 @@ export default function UserIndex({ auth, users, filters, flash }) {
                   </div>
                   
                   <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                     {!user.approved && canModify && (
-                       <button onClick={() => handleApprove(user.id)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve User">
-                          <CheckCircle size={16} />
-                       </button>
-                     )}
                      {canModify && (
                        <>
                          <button onClick={() => openEditModal(user)} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors">
@@ -314,6 +302,16 @@ export default function UserIndex({ auth, users, filters, flash }) {
            </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, type: '', userId: null })}
+        onConfirm={handleConfirmAction}
+        title="Hapus User?"
+        message="User ini akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan."
+        type="danger"
+      />
 
     </AuthenticatedLayout>
   );

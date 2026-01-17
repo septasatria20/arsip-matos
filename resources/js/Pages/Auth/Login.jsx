@@ -25,6 +25,23 @@ export default function Login({ status, canResetPassword }) {
         };
     }, []);
 
+    // Toast notifications
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success, {
+                duration: 5000,
+                style: {
+                    background: '#10b981',
+                    color: '#fff',
+                    fontWeight: '600',
+                },
+            });
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash]);
+
     // Toast notifications untuk error dan success
     useEffect(() => {
         if (flash?.success) {
@@ -46,6 +63,7 @@ export default function Login({ status, canResetPassword }) {
     return (
         <GuestLayout>
             <Head title="Log in" />
+            <Toaster position="top-center" />
             <Toaster position="top-right" />
 
             {status && (

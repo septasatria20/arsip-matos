@@ -42,12 +42,10 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'admin',
-            'approved' => false, // User baru harus menunggu approval
         ]);
 
         event(new Registered($user));
 
-        // Tidak redirect, biarkan frontend handle success state
-        return back();
+        return redirect()->route('login')->with('success', 'Pendaftaran berhasil! Silakan login dengan akun Anda.');
     }
 }

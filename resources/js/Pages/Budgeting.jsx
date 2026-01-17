@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronDown, ImageIcon, Upload, Trash2, Edit,
   Eye, ExternalLink, Filter
 } from 'lucide-react';
+import ConfirmDialog from '@/Components/ConfirmDialog';
 
 // Helper format rupiah
 const formatRupiah = (amount) => {
@@ -35,6 +36,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   const [exportType, setExportType] = useState('all');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: '', itemId: null });
   
   // State untuk Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -134,9 +136,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   };
 
   const handleDeleteOldFile = (id) => {
-    if (confirm('Yakin ingin menghapus file ini?')) {
-      router.delete(route('budgeting.destroy_old', id));
-    }
+    setConfirmDialog({ isOpen: true, type: 'deleteOldFile', itemId: id });
   };
 
   // --- ACTIONS TRANSAKSI ---
@@ -162,9 +162,17 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   };
 
   const handleDelete = (id) => {
-      if (confirm('Yakin ingin menghapus transaksi ini?')) {
-          router.delete(route('budgeting.destroy', id));
-      }
+    setConfirmDialog({ isOpen: true, type: 'deleteTransaction', itemId: id });
+  };
+
+  // Handle Confirm Actions
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'deleteTransaction') {
+      router.delete(route('budgeting.destroy', confirmDialog.itemId));
+    } else if (confirmDialog.type === 'deleteOldFile') {
+      router.delete(route('budgeting.destroy_old', confirmDialog.itemId));
+    }
+    setConfirmDialog({ isOpen: false, type: '', itemId: null });
   };
 
   const handleEdit = (item) => {
@@ -921,6 +929,21 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
         </div>
       )}      
       {/* Detail Modal */}
-      {viewDetail && <DetailModal item={viewDetail} onClose={() => setViewDetail(null)} />}    </AuthenticatedLayout>
+      {viewDetail && <DetailModal item={viewDetail} onClose={() => setViewDetail(null)} />}
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, type: '', itemId: null })}
+        onConfirm={handleConfirmAction}
+        title={confirmDialog.type === 'deleteTransaction' ? 'Hapus Transaksi?' : 'Hapus File?'}
+        message={
+          confirmDialog.type === 'deleteTransaction'
+            ? 'Transaksi ini akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.'
+            : 'File ini akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.'
+        }
+        type="danger"
+      />
+    </AuthenticatedLayout>
   );
 }
