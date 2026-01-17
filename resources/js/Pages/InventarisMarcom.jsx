@@ -60,8 +60,14 @@ export default function InventarisMarcom({ auth, items, filters }) {
 
   // Fungsi simpan perubahan dari modal
   const handleUpdateItem = (e) => {
-      e.preventDefault(); // Prevent default form submission
+      e.preventDefault();
       if (!selectedItem) return;
+      
+      // Validasi ukuran file gambar (max 2MB)
+      if (editData.image && editData.image.size > 2 * 1024 * 1024) {
+        toast.error('Ukuran foto maksimal 2MB!');
+        return;
+      }
       
       postEdit(route('inventories.update', selectedItem.id), {
           onSuccess: () => {
@@ -70,7 +76,7 @@ export default function InventarisMarcom({ auth, items, filters }) {
           },
           onError: (errors) => {
             console.error("Gagal update:", errors);
-            alert("Gagal menyimpan perubahan. Cek console untuk detail.");
+            toast.error("Gagal menyimpan perubahan.");
           },
           preserveScroll: true
       });
@@ -111,6 +117,13 @@ export default function InventarisMarcom({ auth, items, filters }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validasi ukuran file gambar (max 2MB)
+    if (data.image && data.image.size > 2 * 1024 * 1024) {
+      toast.error('Ukuran foto maksimal 2MB!');
+      return;
+    }
+    
     post(route('inventories.store'), {
       onSuccess: () => {
         reset();
@@ -441,7 +454,22 @@ export default function InventarisMarcom({ auth, items, filters }) {
                 onClick={() => setSelectedItem(item)}
                 className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all overflow-hidden group flex flex-col cursor-pointer"
               >
-                 {/* Hilangkan preview gambar, langsung ke content */}
+                 {/* Image Preview dengan Lazy Loading */}
+                 {item.image_path && (
+                   <div className="relative w-full h-40 bg-slate-100 overflow-hidden">
+                     <img 
+                       src={`/storage/${item.image_path}`} 
+                       alt={item.name}
+                       loading="lazy"
+                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                       onError={(e) => {
+                         e.target.style.display = 'none';
+                         e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>';
+                       }}
+                     />
+                   </div>
+                 )}
+                 
                  <div className="p-4 flex-1 flex flex-col relative">
                     {/* Badge Status di pojok kanan atas */}
                     <div className="absolute top-3 right-3">
@@ -557,7 +585,8 @@ export default function InventarisMarcom({ auth, items, filters }) {
 
                <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Foto Barang</label>
-                  <input type="file" onChange={e => setData('image', e.target.files[0])} className="w-full p-2 border border-slate-300 rounded-xl text-sm" accept="image/*" />
+                  <input type="file" onChange={e => setData('image', e.target.files[0])} className="w-full p-2 border border-slate-300 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100" accept="image/*" />
+                  <p className="text-xs text-slate-400 mt-2">Format JPG/PNG. Max 2MB.</p>
                </div>
 
                <div>

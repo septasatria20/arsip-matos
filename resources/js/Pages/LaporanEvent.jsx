@@ -51,6 +51,19 @@ export default function LaporanEvent({ auth, reports, filters }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validasi ukuran file poster (max 2MB)
+    if (data.poster && data.poster.size > 2 * 1024 * 1024) {
+      toast.error('Ukuran foto poster maksimal 2MB!');
+      return;
+    }
+    
+    // Validasi ukuran file PDF (max 5MB)
+    if (data.report_file && data.report_file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file PDF maksimal 5MB!');
+      return;
+    }
+    
     post(route('laporan.store'), {
       onSuccess: () => {
         reset();
@@ -290,6 +303,22 @@ export default function LaporanEvent({ auth, reports, filters }) {
                 onClick={() => setSelectedReport(item)} // Klik card untuk buka preview
                 className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer"
               >
+                 {/* Poster Image dengan Lazy Loading */}
+                 {item.poster_path && (
+                   <div className="relative w-full h-40 bg-slate-100 overflow-hidden">
+                     <img 
+                       src={`/storage/${item.poster_path}`} 
+                       alt={item.event_name}
+                       loading="lazy"
+                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                       onError={(e) => {
+                         e.target.style.display = 'none';
+                         e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>';
+                       }}
+                     />
+                   </div>
+                 )}
+                 
                  {/* Card Body */}
                  <div className="p-4 flex-1 flex flex-col relative">
                     {/* Badge Status di pojok kanan atas */}

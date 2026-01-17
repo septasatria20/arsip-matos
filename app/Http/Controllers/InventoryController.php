@@ -37,7 +37,7 @@ class InventoryController extends Controller
             'location' => 'required|string',
             'condition' => 'required|in:good,repair,damaged',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|image|max:2048', // Maksimal 2MB (2048 KB)
             'drive_link' => 'nullable|url',
             'drive_link_folder' => 'nullable|url',
         ]);

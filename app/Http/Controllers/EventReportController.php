@@ -40,9 +40,9 @@ class EventReportController extends Controller
         $validated = $request->validate([
             'event_date' => 'required|date',
             'event_name' => 'required|string|max:255',
-            'description' => 'required|string', // Validasi deskripsi
+            'description' => 'required|string',
             'drive_link' => 'nullable|url',
-            'poster' => 'nullable|image|max:2048',
+            'poster' => 'nullable|image|max:2048', // Maksimal 2MB (2048 KB)
             'report_file' => 'nullable|file|mimes:pdf|max:5120',
         ]);
 
