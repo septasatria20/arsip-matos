@@ -53,6 +53,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   const [filterStatus, setFilterStatus] = useState('');
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: '', itemId: null });
   const [nominalDisplay, setNominalDisplay] = useState(''); // State untuk display formatted nominal
+  const [budgetDisplays, setBudgetDisplays] = useState([]); // State untuk display formatted budget per bulan
   
   // State untuk Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -129,17 +130,25 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
         } else {
             budgetSource = expenseOverview;
         }
+        const budgets = budgetSource.map(m => ({ month: m.month_num, amount: m.budget || 0 }));
         setBudgetData({
             year: currentYear,
             type: budgetType,
-            budgets: budgetSource.map(m => ({ month: m.month_num, amount: m.budget || 0 }))
+            budgets: budgets
         });
+        // Set formatted displays untuk setiap budget
+        setBudgetDisplays(budgets.map(b => formatNominalInput(b.amount.toString())));
     }
   }, [viewMode, budgetType, monthlyOverview, incomeOverview, expenseOverview]);
 
   const handleBudgetChange = (index, value) => {
+      const formatted = formatNominalInput(value);
+      const newDisplays = [...budgetDisplays];
+      newDisplays[index] = formatted;
+      setBudgetDisplays(newDisplays);
+      
       const newBudgets = [...budgetData.budgets];
-      newBudgets[index].amount = value;
+      newBudgets[index].amount = parseNominalInput(formatted);
       setBudgetData('budgets', newBudgets);
   };
 
@@ -783,10 +792,11 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
                                     <input 
-                                        type="number" 
-                                        value={item.amount} 
+                                        type="text" 
+                                        value={budgetDisplays[index] || ''} 
                                         onChange={(e) => handleBudgetChange(index, e.target.value)}
-                                        className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:ring-2 focus:ring-purple-500 outline-none"
+                                        className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:ring-2 focus:ring-purple-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        placeholder="0"
                                     />
                                 </div>
                             </div>
@@ -976,7 +986,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                        value={nominalDisplay} 
                        onChange={handleNominalChange} 
                        className="w-full p-3 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                       placeholder="Contoh: 1.000.000"
+                       placeholder=""
                        required 
                      />
                      <p className="text-xs text-slate-500 mt-1">Format otomatis dengan titik pemisah ribuan</p>
