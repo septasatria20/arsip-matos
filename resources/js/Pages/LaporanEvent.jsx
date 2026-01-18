@@ -143,7 +143,7 @@ export default function LaporanEvent({ auth, reports, filters }) {
                 {/* Header Image */}
                 <div className="relative max-h-[60vh] bg-slate-100 flex items-center justify-center group">
                     {selectedReport.poster_path ? (
-                        <div className="relative cursor-pointer" onClick={(e) => { e.stopPropagation(); setFullscreenImage(`/storage/${selectedReport.poster_path}`); }}>
+                        <div className="relative cursor-pointer" onClick={() => setFullscreenImage(`/storage/${selectedReport.poster_path}`)}>
                             <img 
                               src={`/storage/${selectedReport.poster_path}`} 
                               className="max-w-full max-h-[60vh] object-contain transition-transform hover:scale-105" 

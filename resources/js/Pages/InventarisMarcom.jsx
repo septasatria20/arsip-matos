@@ -186,7 +186,7 @@ export default function InventarisMarcom({ auth, items, filters }) {
                 {/* Header Image */}
                 <div className="relative max-h-[50vh] bg-slate-100 flex items-center justify-center group shrink-0">
                     {selectedItem.image_path ? (
-                        <div className="relative cursor-pointer w-full" onClick={(e) => { e.stopPropagation(); setFullscreenImage(`/storage/${selectedItem.image_path}`); }}>
+                        <div className="relative cursor-pointer w-full" onClick={() => setFullscreenImage(`/storage/${selectedItem.image_path}`)}>
                             <img 
                               src={`/storage/${selectedItem.image_path}`} 
                               className="max-w-full max-h-[50vh] object-contain transition-transform hover:scale-105" 

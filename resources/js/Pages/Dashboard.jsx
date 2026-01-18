@@ -128,7 +128,309 @@ const EventBarChart = ({ data }) => {
   );
 };
 
-// Grafik Garis untuk Budgeting
+// Grafik Combo (Bar + Line) untuk Budgeting Income
+const BudgetingIncomeChart = ({ data }) => {
+  if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data pemasukan</div>;
+
+  const [hoveredBar, setHoveredBar] = React.useState(null);
+
+  // Ambil nilai maksimum untuk scaling
+  const maxVal = Math.max(
+    ...data.map(d => Math.max(d.income_budget || 0, d.income || 0)),
+    1000000
+  );
+  const scale = 180 / maxVal;
+
+  // Format Rupiah
+  const formatRupiah = (val) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+  };
+
+  const formatShort = (val) => {
+    if (val >= 1000000000) return `${(val / 1000000000).toFixed(1)}B`;
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val;
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-end justify-between h-72 w-full gap-1 px-2 relative">
+        {/* Y-axis labels */}
+        <div className="absolute left-0 top-0 bottom-12 flex flex-col justify-between text-xs text-slate-400 pr-2">
+          <span>{formatShort(maxVal)}</span>
+          <span>{formatShort(maxVal * 0.75)}</span>
+          <span>{formatShort(maxVal * 0.5)}</span>
+          <span>{formatShort(maxVal * 0.25)}</span>
+          <span>0</span>
+        </div>
+
+        <div className="ml-12 flex-1 h-full relative">
+          <svg className="absolute inset-0 w-full h-64" preserveAspectRatio="none">
+            {/* Grid lines */}
+            {[0, 25, 50, 75, 100].map((pct) => (
+              <line
+                key={pct}
+                x1="0"
+                y1={`${100 - pct}%`}
+                x2="100%"
+                y2={`${100 - pct}%`}
+                stroke="#f1f5f9"
+                strokeWidth="1"
+              />
+            ))}
+
+            {/* Line Chart untuk Trend */}
+            <polyline
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={data
+                .map((item, idx) => {
+                  const x = ((idx + 0.5) / data.length) * 100;
+                  const y = 100 - ((item.income || 0) / maxVal * 100);
+                  return `${x}%,${y}%`;
+                })
+                .join(' ')}
+            />
+
+            {/* Dots pada line */}
+            {data.map((item, idx) => {
+              const x = ((idx + 0.5) / data.length) * 100;
+              const y = 100 - ((item.income || 0) / maxVal * 100);
+              return (
+                <circle
+                  key={`dot-${idx}`}
+                  cx={`${x}%`}
+                  cy={`${y}%`}
+                  r="4"
+                  fill="#10b981"
+                  stroke="white"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+
+          {/* Bar Chart Container */}
+          <div className="relative h-64 flex items-end justify-between">
+            {data.map((item, idx) => {
+              const budgetHeight = Math.max((item.income_budget || 0) * scale, 4);
+              const actualHeight = Math.max((item.income || 0) * scale, 4);
+              const isExceeded = (item.income || 0) >= (item.income_budget || 0);
+
+              return (
+                <div key={idx} className="flex flex-col items-center flex-1 min-w-0 relative group">
+                  {/* Tooltip */}
+                  {hoveredBar === idx && (
+                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-lg">
+                      <div className="font-semibold mb-1">{item.month}</div>
+                      <div className="text-green-200">Target: {formatRupiah(item.income_budget || 0)}</div>
+                      <div className="text-green-300 font-bold">Actual: {formatRupiah(item.income || 0)}</div>
+                      <div className={isExceeded ? 'text-green-400' : 'text-amber-300'}>
+                        {isExceeded ? '✓ Tercapai' : '⚠ Kurang'}
+                      </div>
+                    </div>
+                  )}
+
+                  <div 
+                    className="relative w-full flex gap-1 items-end h-64 px-1"
+                    onMouseEnter={() => setHoveredBar(idx)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                  >
+                    {/* Target Budget Bar (Abu-abu/Hijau muda) */}
+                    <div className="flex-1 bg-slate-200 rounded-t transition-all duration-200 group-hover:bg-slate-300" style={{ height: `${budgetHeight}px` }}></div>
+                    
+                    {/* Actual Income Bar (Hijau) */}
+                    <div className={`flex-1 rounded-t transition-all duration-200 ${isExceeded ? 'bg-green-600 group-hover:bg-green-700' : 'bg-green-500 group-hover:bg-green-600'}`} style={{ height: `${actualHeight}px` }}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Month labels */}
+      <div className="flex justify-between mt-2 ml-12">
+        {data.map((item, idx) => (
+          <span key={idx} className="text-xs text-slate-600 font-medium flex-1 text-center">{item.month}</span>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-slate-200 rounded border border-slate-300"></div>
+          <span className="text-sm text-slate-600">Target Budget</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-600 rounded"></div>
+          <span className="text-sm text-slate-600">Pemasukan Actual</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow"></div>
+          <span className="text-sm text-slate-600">Trend Line</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Grafik Combo (Bar + Line) untuk Budgeting Expense
+const BudgetingExpenseChart = ({ data }) => {
+  if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data pengeluaran</div>;
+
+  const [hoveredBar, setHoveredBar] = React.useState(null);
+
+  // Ambil nilai maksimum untuk scaling
+  const maxVal = Math.max(
+    ...data.map(d => Math.max(d.expense_budget || 0, d.expense || 0)),
+    1000000
+  );
+  const scale = 180 / maxVal;
+
+  // Format Rupiah
+  const formatRupiah = (val) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+  };
+
+  const formatShort = (val) => {
+    if (val >= 1000000000) return `${(val / 1000000000).toFixed(1)}B`;
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val;
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-end justify-between h-72 w-full gap-1 px-2 relative">
+        {/* Y-axis labels */}
+        <div className="absolute left-0 top-0 bottom-12 flex flex-col justify-between text-xs text-slate-400 pr-2">
+          <span>{formatShort(maxVal)}</span>
+          <span>{formatShort(maxVal * 0.75)}</span>
+          <span>{formatShort(maxVal * 0.5)}</span>
+          <span>{formatShort(maxVal * 0.25)}</span>
+          <span>0</span>
+        </div>
+
+        <div className="ml-12 flex-1 h-full relative">
+          <svg className="absolute inset-0 w-full h-64" preserveAspectRatio="none">
+            {/* Grid lines */}
+            {[0, 25, 50, 75, 100].map((pct) => (
+              <line
+                key={pct}
+                x1="0"
+                y1={`${100 - pct}%`}
+                x2="100%"
+                y2={`${100 - pct}%`}
+                stroke="#f1f5f9"
+                strokeWidth="1"
+              />
+            ))}
+
+            {/* Line Chart untuk Trend */}
+            <polyline
+              fill="none"
+              stroke="#ef4444"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={data
+                .map((item, idx) => {
+                  const x = ((idx + 0.5) / data.length) * 100;
+                  const y = 100 - ((item.expense || 0) / maxVal * 100);
+                  return `${x}%,${y}%`;
+                })
+                .join(' ')}
+            />
+
+            {/* Dots pada line */}
+            {data.map((item, idx) => {
+              const x = ((idx + 0.5) / data.length) * 100;
+              const y = 100 - ((item.expense || 0) / maxVal * 100);
+              return (
+                <circle
+                  key={`dot-${idx}`}
+                  cx={`${x}%`}
+                  cy={`${y}%`}
+                  r="4"
+                  fill="#ef4444"
+                  stroke="white"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+
+          {/* Bar Chart Container */}
+          <div className="relative h-64 flex items-end justify-between">
+            {data.map((item, idx) => {
+              const budgetHeight = Math.max((item.expense_budget || 0) * scale, 4);
+              const actualHeight = Math.max((item.expense || 0) * scale, 4);
+              const isOverBudget = (item.expense || 0) > (item.expense_budget || 0);
+
+              return (
+                <div key={idx} className="flex flex-col items-center flex-1 min-w-0 relative group">
+                  {/* Tooltip */}
+                  {hoveredBar === idx && (
+                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-lg">
+                      <div className="font-semibold mb-1">{item.month}</div>
+                      <div className="text-red-200">Limit: {formatRupiah(item.expense_budget || 0)}</div>
+                      <div className="text-red-300 font-bold">Actual: {formatRupiah(item.expense || 0)}</div>
+                      <div className={isOverBudget ? 'text-amber-300' : 'text-green-400'}>
+                        {isOverBudget ? '⚠ Over Budget' : '✓ Aman'}
+                      </div>
+                    </div>
+                  )}
+
+                  <div 
+                    className="relative w-full flex gap-1 items-end h-64 px-1"
+                    onMouseEnter={() => setHoveredBar(idx)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                  >
+                    {/* Budget Limit Bar (Abu-abu/Merah muda) */}
+                    <div className="flex-1 bg-slate-200 rounded-t transition-all duration-200 group-hover:bg-slate-300" style={{ height: `${budgetHeight}px` }}></div>
+                    
+                    {/* Actual Expense Bar (Merah) */}
+                    <div className={`flex-1 rounded-t transition-all duration-200 ${isOverBudget ? 'bg-red-700 group-hover:bg-red-800' : 'bg-red-500 group-hover:bg-red-600'}`} style={{ height: `${actualHeight}px` }}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Month labels */}
+      <div className="flex justify-between mt-2 ml-12">
+        {data.map((item, idx) => (
+          <span key={idx} className="text-xs text-slate-600 font-medium flex-1 text-center">{item.month}</span>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-slate-200 rounded border border-slate-300"></div>
+          <span className="text-sm text-slate-600">Budget Limit</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-500 rounded"></div>
+          <span className="text-sm text-slate-600">Pengeluaran Actual</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow"></div>
+          <span className="text-sm text-slate-600">Trend Line</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Grafik Garis untuk Budgeting (DEPRECATED - diganti dengan 2 grafik terpisah di atas)
 const BudgetingLineChart = ({ data }) => {
   if (!data || data.length === 0) return <div className="text-slate-400 text-center py-8">Tidak ada data budgeting</div>;
 
@@ -536,29 +838,57 @@ export default function Dashboard({ auth, statsData, chartData, recentActivities
 
              {/* Grafik Budgeting untuk Manager/Co-Manager */}
              {!isAdmin && budgetingChart && budgetingChart.length > 0 && (
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-                   <h3 className="font-bold text-slate-800 text-lg">Pemasukan & Pengeluaran per Bulan</h3>
-                   <div className="flex items-center gap-2">
-                     <Calendar size={16} className="text-slate-400 flex-shrink-0" />
-                     <select 
-                       value={budgetYear}
-                       onChange={(e) => handleBudgetYearChange(e.target.value)}
-                       disabled={loadingBudget}
-                       className="text-sm border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors min-w-[100px] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat disabled:opacity-50"
-                     >
-                       {years.map(year => (
-                         <option key={year} value={year}>{year}</option>
-                       ))}
-                     </select>
+               <>
+                 {/* Grafik Pemasukan */}
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                   <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                     <div>
+                       <h3 className="font-bold text-slate-800 text-lg flex items-center">
+                         <TrendingUp size={20} className="mr-2 text-green-600" />
+                         Target vs Pemasukan Bulanan
+                       </h3>
+                       <p className="text-xs text-slate-500 mt-1">Perbandingan target budget dengan pemasukan aktual</p>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <Calendar size={16} className="text-slate-400 flex-shrink-0" />
+                       <select 
+                         value={budgetYear}
+                         onChange={(e) => handleBudgetYearChange(e.target.value)}
+                         disabled={loadingBudget}
+                         className="text-sm border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors min-w-[100px] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat disabled:opacity-50"
+                       >
+                         {years.map(year => (
+                           <option key={year} value={year}>{year}</option>
+                         ))}
+                       </select>
+                     </div>
                    </div>
+                   {loadingBudget ? (
+                     <div className="h-64 flex items-center justify-center text-slate-400">Loading...</div>
+                   ) : (
+                     <BudgetingIncomeChart data={budgetingChart} />
+                   )}
                  </div>
-                 {loadingBudget ? (
-                   <div className="h-64 flex items-center justify-center text-slate-400">Loading...</div>
-                 ) : (
-                   <BudgetingLineChart data={budgetingChart} />
-                 )}
-               </div>
+
+                 {/* Grafik Pengeluaran */}
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                   <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                     <div>
+                       <h3 className="font-bold text-slate-800 text-lg flex items-center">
+                         <TrendingDown size={20} className="mr-2 text-red-600" />
+                         Budget vs Pengeluaran Bulanan
+                       </h3>
+                       <p className="text-xs text-slate-500 mt-1">Perbandingan budget limit dengan pengeluaran aktual</p>
+                     </div>
+                     <div className="text-sm text-slate-500 font-medium">{budgetYear}</div>
+                   </div>
+                   {loadingBudget ? (
+                     <div className="h-64 flex items-center justify-center text-slate-400">Loading...</div>
+                   ) : (
+                     <BudgetingExpenseChart data={budgetingChart} />
+                   )}
+                 </div>
+               </>
              )}
           </div>
 

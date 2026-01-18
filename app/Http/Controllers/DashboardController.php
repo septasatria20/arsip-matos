@@ -8,6 +8,7 @@ use App\Models\ConfirmationLetter;
 use App\Models\EventReport;
 use App\Models\Inventory;
 use App\Models\Transaction;
+use App\Models\Budget;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -174,6 +175,7 @@ class DashboardController extends Controller
         // === GRAFIK BUDGETING PEMASUKAN & PENGELUARAN PER BULAN (hanya untuk manager/co-manager) ===
         $budgetingChartData = [];
         if ($role !== 'admin') {
+            // Ambil data income/expense actual
             $incomeChart = Transaction::select(
                     DB::raw('MONTH(transaction_date) as month'),
                     DB::raw('SUM(nominal) as total')
@@ -194,6 +196,17 @@ class DashboardController extends Controller
                 ->orderBy('month')
                 ->get();
 
+            // Ambil data budget untuk income dan expense
+            $incomeBudgets = Budget::where('year', $selectedYear)
+                ->where('type', 'income')
+                ->get()
+                ->keyBy('month');
+
+            $expenseBudgets = Budget::where('year', $selectedYear)
+                ->where('type', 'expense')
+                ->get()
+                ->keyBy('month');
+
             for ($i = 1; $i <= 12; $i++) {
                 $incomeData = $incomeChart->firstWhere('month', $i);
                 $expenseData = $expenseChart->firstWhere('month', $i);
@@ -201,6 +214,8 @@ class DashboardController extends Controller
                     'month' => date("M", mktime(0, 0, 0, $i, 1)),
                     'income' => $incomeData ? (int)$incomeData->total : 0,
                     'expense' => $expenseData ? (int)$expenseData->total : 0,
+                    'income_budget' => isset($incomeBudgets[$i]) ? (int)$incomeBudgets[$i]->amount : 0,
+                    'expense_budget' => isset($expenseBudgets[$i]) ? (int)$expenseBudgets[$i]->amount : 0,
                 ];
             }
         }
@@ -279,6 +294,17 @@ class DashboardController extends Controller
             ->orderBy('month')
             ->get();
 
+        // Ambil data budget untuk income dan expense
+        $incomeBudgets = Budget::where('year', $year)
+            ->where('type', 'income')
+            ->get()
+            ->keyBy('month');
+
+        $expenseBudgets = Budget::where('year', $year)
+            ->where('type', 'expense')
+            ->get()
+            ->keyBy('month');
+
         $budgetingChartData = [];
         for ($i = 1; $i <= 12; $i++) {
             $incomeData = $incomeChart->firstWhere('month', $i);
@@ -287,6 +313,8 @@ class DashboardController extends Controller
                 'month' => date("M", mktime(0, 0, 0, $i, 1)),
                 'income' => $incomeData ? (int)$incomeData->total : 0,
                 'expense' => $expenseData ? (int)$expenseData->total : 0,
+                'income_budget' => isset($incomeBudgets[$i]) ? (int)$incomeBudgets[$i]->amount : 0,
+                'expense_budget' => isset($expenseBudgets[$i]) ? (int)$expenseBudgets[$i]->amount : 0,
             ];
         }
 

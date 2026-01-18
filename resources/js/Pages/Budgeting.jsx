@@ -15,6 +15,19 @@ const formatRupiah = (amount) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
+// Helper untuk format input nominal dengan titik pemisah ribuan
+const formatNominalInput = (value) => {
+  // Hapus semua karakter non-digit
+  const numbers = value.replace(/\D/g, '');
+  // Format dengan titik pemisah ribuan
+  return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+// Helper untuk parse nominal kembali ke angka
+const parseNominalInput = (value) => {
+  return value.replace(/\./g, '');
+};
+
 // Helper format tanggal
 const formatDate = (dateString) => {
   if (!dateString) return '-';
@@ -39,6 +52,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
   const [filterMonth, setFilterMonth] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, type: '', itemId: null });
+  const [nominalDisplay, setNominalDisplay] = useState(''); // State untuk display formatted nominal
   
   // State untuk Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -209,7 +223,15 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
           proof_file: null,
           _method: 'PATCH'
       });
+      setNominalDisplay(formatNominalInput(item.nominal.toString())); // Set formatted display
       setViewMode('create');
+  };
+
+  // Handler untuk input nominal dengan auto-formatting
+  const handleNominalChange = (e) => {
+    const formatted = formatNominalInput(e.target.value);
+    setNominalDisplay(formatted);
+    setData('nominal', parseNominalInput(formatted));
   };
 
   const handleYearChange = (e) => {
@@ -240,6 +262,7 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
       reset();
       setIsEditing(false);
       setEditId(null);
+      setNominalDisplay(''); // Reset nominal display
       setData('_method', 'POST');
 
       if (activeTab === 'income') {
@@ -508,6 +531,12 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                                 </td>
                              </tr>
                           ))}
+                          <tr className="bg-green-100 font-bold border-t-2 border-green-300">
+                             <td colSpan={2} className="p-4 text-center text-green-800">TOTAL</td>
+                             <td className="p-4 text-right text-green-800">{formatRupiah(incomeOverview.reduce((acc, item) => acc + Number(item.budget), 0))}</td>
+                             <td className="p-4 text-right text-green-800">{formatRupiah(incomeOverview.reduce((acc, item) => acc + Number(item.actual), 0))}</td>
+                             <td className="p-4 text-right text-green-800">{formatRupiah(incomeOverview.reduce((acc, item) => acc + Number(item.diff), 0))}</td>
+                          </tr>
                        </tbody>
                     </table>
                  </div>
@@ -539,6 +568,12 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                                 </td>
                              </tr>
                           ))}
+                          <tr className="bg-red-100 font-bold border-t-2 border-red-300">
+                             <td colSpan={2} className="p-4 text-center text-red-800">TOTAL</td>
+                             <td className="p-4 text-right text-red-800">{formatRupiah(expenseOverview.reduce((acc, item) => acc + Number(item.budget), 0))}</td>
+                             <td className="p-4 text-right text-red-800">{formatRupiah(expenseOverview.reduce((acc, item) => acc + Number(item.actual), 0))}</td>
+                             <td className="p-4 text-right text-red-800">{formatRupiah(expenseOverview.reduce((acc, item) => acc + Number(item.diff), 0))}</td>
+                          </tr>
                        </tbody>
                     </table>
                  </div>
@@ -936,7 +971,15 @@ export default function Budgeting({ auth, monthlyOverview, incomeOverview, expen
                   </div>
                   <div>
                      <label className="block text-sm font-bold text-slate-700 mb-2">Nominal (Rp)</label>
-                     <input type="number" value={data.nominal} onChange={e => setData('nominal', e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl text-sm font-bold text-slate-800" required />
+                     <input 
+                       type="text" 
+                       value={nominalDisplay} 
+                       onChange={handleNominalChange} 
+                       className="w-full p-3 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                       placeholder="Contoh: 1.000.000"
+                       required 
+                     />
+                     <p className="text-xs text-slate-500 mt-1">Format otomatis dengan titik pemisah ribuan</p>
                   </div>
                </div>
 
